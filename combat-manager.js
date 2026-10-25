@@ -491,15 +491,28 @@ export const CombatMethods = {
                 this.showMessage('NPC Eliminated!');
                 this.registerKill();
 
-                // Toca a animação de morte definida no config.js
+                // Remove o NPC do jogo de vez: some com um fade e o sprite é destruído.
+                // Quem tem animação de morte (config.js) a toca antes de sumir.
                 const type = npc.getData('type');
                 const deathAnim = `npc_${type}_morto`;
+                const removeBody = () => {
+                    if (!npc.scene) return;
+                    this.scene.tweens.add({
+                        targets: npc,
+                        alpha: 0,
+                        duration: 400,
+                        onComplete: () => {
+                            if (npc.healthBar) npc.healthBar.destroy();
+                            npc.destroy();
+                        }
+                    });
+                };
                 if (this.scene.anims.exists(deathAnim)) {
                     npc.play(deathAnim);
-                    // Opcional: faz o corpo sumir após alguns segundos
-                    this.scene.time.delayedCall(3000, () => { if(npc.active) npc.setVisible(false).setActive(false); });
+                    this.scene.time.delayedCall(2500, removeBody);
                 } else {
-                    npc.setActive(false).setVisible(false);
+                    npc.setActive(false);
+                    removeBody();
                 }
                 
                 // Lógica de Drop Offline
