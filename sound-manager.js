@@ -14,13 +14,23 @@ export default class SoundManager {
     }
 
     create() {
-        // Configura e inicia a música de fundo
+        // O SoundManager do Phaser é global: sem isso a música se acumula a cada restart da cena
+        this.stopMusic();
         if (this.scene.cache.audio.exists('bg_music')) {
             this.music = this.scene.sound.add('bg_music', { 
                 volume: GAME_CONFIG.MUSIC_VOLUME, 
                 loop: true 
             });
             this.music.play();
+        }
+        this.scene.events.once('shutdown', () => this.stopMusic());
+    }
+
+    stopMusic() {
+        if (this.music) {
+            this.music.stop();
+            this.music.destroy();
+            this.music = null;
         }
     }
 

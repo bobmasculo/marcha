@@ -77,10 +77,13 @@ export default class GameScene extends Phaser.Scene {
         this.npcManager.preload();
 
         // Gera uma textura simples para partículas de sangue (para não precisar de arquivo externo)
-        const graphics = this.make.graphics({ x: 0, y: 0, add: false });
-        graphics.fillStyle(0xcc0000, 1); // Vermelho sangue
-        graphics.fillCircle(4, 4, 4);
-        graphics.generateTexture('blood_particle', 8, 8);
+        if (!this.textures.exists('blood_particle')) {
+            const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+            graphics.fillStyle(0xcc0000, 1); // Vermelho sangue
+            graphics.fillCircle(4, 4, 4);
+            graphics.generateTexture('blood_particle', 8, 8);
+            graphics.destroy();
+        }
 
         console.log('GameScene: Assets carregados!');
     }
@@ -267,6 +270,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     update() {
+        // Fim de jogo: congela a simulação (a tela de resultado é só UI)
+        if (this.gameManager && this.gameManager.isGameOver) return;
+
         if (this.gameManager) {
             this.gameManager.update();
 

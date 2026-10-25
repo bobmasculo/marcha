@@ -14,6 +14,7 @@ export default class GameManager {
         this.messageProgress = 0; // Progresso do objetivo (0 a 100)
         this.messageCurrentCost = GAME_CONFIG.MESSAGE_INITIAL_COST || 100;
         this.turnEnding = true; // Inicia como TRUE para bloquear o timeout antes do jogo começar
+        this.isGameOver = false; // Pausa a simulação e evita telas de fim de jogo duplicadas
         this.isIsometricView = false; // Flag para o modo isométrico
         this.lastRegenTime = 0; // Controle de regeneração do comandante
         this.showShootRange = false; // flag para exibir alcance de tiro
@@ -727,7 +728,8 @@ export default class GameManager {
         // MUDANÇA: Agora usa playShootAnimation para disparar a sequência completa de frames
         if (this.animationManager) this.animationManager.playShootAnimation(shooter, aimDirection);
 
-        this.updateUI();
+        const isSelectedShooter = shooter === this.selectedPlayer;
+        if (isSelectedShooter) this.updateUI();
         
         // Tocar som de tiro
         if (this.soundManager) this.soundManager.playShoot();
@@ -746,8 +748,11 @@ export default class GameManager {
             this.scene.shotManager.fireGameFeelProjectile(startX, startY, targetX, targetY, 0, false, shooter, weaponConfig);
         }
         this.resolveOfflineShot(shooter, targetX, targetY); // Lógica de dano offline
-        this.setActionMode(null);
-        this.removeShootVisuals();
+        // Só o tiro do jogador limpa o modo de ação; o autofire dos soldados não pode cancelá-lo
+        if (isSelectedShooter) {
+            this.setActionMode(null);
+            this.removeShootVisuals();
+        }
     }
 
     // Resolve o tiro localmente (cálculo de dano)
@@ -1190,6 +1195,9 @@ export default class GameManager {
         fixElement(window.scoreText);
         fixElement(window.transmitBtn);
         fixElement(window.progressText);
+        fixElement(window.spawnMinerBtn);
+        fixElement(window.spawnSoldierBtn);
+        fixElement(window.distanceText);
 
         // Corrige a posição dos slots e ícones do inventário
         if (window.inventorySlots) {
@@ -1861,6 +1869,9 @@ export default class GameManager {
     }
 
     handleGameOver({ winner, scores, reason }) {
+        if (this.isGameOver) return;
+        this.isGameOver = true;
+        this.scene.physics.pause();
         this.selectedPlayer = null;
         this.setActionMode(null);
 
