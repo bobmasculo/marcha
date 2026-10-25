@@ -11,9 +11,7 @@ export default class NpcManager {
         this.npcs = null;
         this.activeDrops = {}; // Armazena drops ativos no cliente
 
-        // Dimensões do mapa (baseado no GameScene: 6600x4400)
-        this.mapWidth = 3300;
-        this.mapHeight = 2200;
+        this.spawned = new Map(); // spawnId -> sprite vivo (evita criar o mesmo alien duas vezes)
 
         this.lastUpdateTime = 0; // Para controlar frequência de atualização da IA
         this.showDebugVision = false; // Flag para ativar/desativar debug visual
@@ -100,41 +98,36 @@ export default class NpcManager {
             });
         }
 
-        // --- GERAÇÃO ALEATÓRIA ---
-        this.spawnRandomNpcs(this.scene.mission ? this.scene.mission.npcCount : (GAME_CONFIG.RANDOM_NPC_COUNT || 5));
+        // Os aliens são criados pelos pedaços do mundo (ChunkManager -> spawnFromSpec)
     }
 
     /**
-     * Gera NPCs em posições aleatórias com rotas de patrulha automáticas.
+     * Cria um alien a partir da especificação gerada para o pedaço (world-gen.js).
+     * spawnId é estável: o mesmo alien nunca aparece duas vezes e, depois de morto, não volta.
      */
-    spawnRandomNpcs(count) {
-        const npcTypes = Object.keys(NPC_CONFIGS);
-        console.log(`[NpcManager] Gerando ${count} NPCs aleatórios entre os tipos: ${npcTypes.join(', ')}`);
+    spawnFromSpec(spec, chunkKey) {
+        if (this.spawned.has(spec.spawnId)) return null;
 
-        for (let i = 0; i < count; i++) {
-            const type = npcTypes[i % npcTypes.length]; // Alterna os tipos para manter o balanço (ex: alien, guarda, alien...)
+        const npc = this.createSingleNpc({
+            id: `rnd_${spec.type}_${spec.spawnId.replace(/,/g, '_')}`,
+            type: spec.type,
+            x: spec.x,
+            y: spec.y,
+            waypoints: spec.waypoints
+        }, 0);
+        if (!npc) return null;
 
-            // Sorteia posição inicial no mapa (evitando as bases dos players)
-            const x = Phaser.Math.Between(800, 2500);
-            const y = Phaser.Math.Between(400, 1800);
+        npc.setData('spawnId', spec.spawnId);
+        npc.setData('chunkKey', chunkKey);
+        this.spawned.set(spec.spawnId, npc);
+        npc.once('destroy', () => this.spawned.delete(spec.spawnId));
+        return npc;
+    }
 
-            // Cria 3 waypoints aleatórios próximos para formar um triângulo de patrulha
-            const waypoints = [
-                { x: x, y: y },
-                { x: x + Phaser.Math.Between(-200, 200), y: y + Phaser.Math.Between(-200, 200) },
-                { x: x + Phaser.Math.Between(-200, 200), y: y + Phaser.Math.Between(-200, 200) }
-            ];
-
-            const npcData = {
-                id: `rnd_${type}_${i}`,
-                type: type,
-                x: x,
-                y: y,
-                waypoints: waypoints
-            };
-
-            this.createSingleNpc(npcData, i + 500); // Offset de index para IDs únicos
-        }
+    /** Remove o alien do jogo (pedaço descarregado ou corpo que já sumiu). */
+    despawnNpc(npc) {
+        if (npc.healthBar) npc.healthBar.destroy();
+        npc.destroy();
     }
 
     /**
@@ -175,7 +168,7 @@ export default class NpcManager {
             npcSprite.weaponStrength = config.weaponStrength || GAME_CONFIG.NPC_WEAPON_STRENGTH;
 
             // --- EFEITOS VISUAIS: COR E BRILHO (APENAS PARA SPAWNS ALEATÓRIOS) ---
-            // Os NPCs criados pela função spawnRandomNpcs possuem IDs começando com 'rnd_'
+            // Os NPCs gerados pelos pedaços do mundo (spawnFromSpec) têm IDs começando com 'rnd_'
             if (npcData.id && npcData.id.startsWith('rnd_')) {
                 if (config.tint) {
                     npcSprite.setTint(config.tint);
@@ -696,21 +689,6 @@ export default class NpcManager {
             
             let vx = Math.cos(angle) * speed + (sep.x * 0.5);
             let vy = Math.sin(angle) * speed + (sep.y * 0.5);
-
-            // --- SEGURANÇA DE GRID ---
-            // Verifica se a posição futura imediata (nos próximos 10px) está bloqueada no grid de navegação.
-            const futureX = npc.x + (Math.sign(vx) * 10);
-            const futureY = npc.y + (Math.sign(vy) * 10);
-            
-            const grid = this.scene.meuCenario.grid;
-            const cellSize = this.scene.meuCenario.cellSize || 50;
-            const gx = Math.floor(futureX / cellSize);
-            const gy = Math.floor(futureY / cellSize);
-
-            if (grid && grid[gy] && grid[gy][gx] === 1) {
-                // REVERTIDO: Lógica de grid muito agressiva removida para permitir que o Arcade Physics 
-                // resolva o deslize na parede naturalmente sem parar o NPC.
-            }
 
             npc.body.setVelocity(vx, vy);
 

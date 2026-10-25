@@ -93,7 +93,8 @@ export const UnitMethods = {
 
         // Cria o LÍDER (Único Player)
         const cfg = PLAYER_SETUP;
-        this.commander = this.createPlayer(cfg.x, cfg.y, cfg.type, 'player_leader', cfg.name);
+        const start = this.scene.world.start; // centro do mundo
+        this.commander = this.createPlayer(start.x, start.y, cfg.type, 'player_leader', cfg.name);
         this.players.add(this.commander);
         
         this.commander.coins = this.mission.startCoins;

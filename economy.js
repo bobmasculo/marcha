@@ -189,6 +189,7 @@ export const EconomyMethods = {
             this.updateUI();
             // Feedback visual rápido de coleta
             this.showFloatingText(ore.x, ore.y, `+$${value}`, '#0000ff');
+            this.scene.chunks.markOreMined(ore.getData('oreId'));
             ore.destroy(); // Remove o minério do mapa
             this.registerOreMined(value);
         }

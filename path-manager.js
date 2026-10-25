@@ -1,121 +1,102 @@
 /**
  * @class PathManager
- * @description Manages pathfinding requests using EasyStar.js to avoid performance bottlenecks.
- * It processes one path request per frame.
+ * @description Pathfinding com EasyStar.js, uma requisição por frame.
+ * O mundo pode ser enorme, então não existe um grid do mapa inteiro: cada busca monta uma
+ * janela de células em volta do trajeto, consultando o ChunkManager (obstáculos de cada pedaço).
  */
+const WINDOW_PADDING = 12;   // células de folga em volta do trajeto
+const MAX_WINDOW = 120;      // maior lado da janela, em células (6000 px com células de 50)
+
 export default class PathManager {
     /**
      * @param {Phaser.Scene} scene The main game scene.
-     * @param {Array<Array<number>>} grid The 2D grid representing the world (0 for walkable, 1 for blocked).
      * @param {number} cellSize The size of each cell in the grid in pixels.
      */
-    constructor(scene, grid, cellSize) {
+    constructor(scene, cellSize) {
         this.scene = scene;
         this.cellSize = cellSize;
         this.easystar = new EasyStar.js();
-        
-        if (grid) {
-            this.easystar.enableDiagonals(); // Permite movimento diagonal para evitar quinas
-            this.setGrid(grid);
-        }
+        this.easystar.enableDiagonals(); // Permite movimento diagonal para evitar quinas
+        this.easystar.setAcceptableTiles([0]); // 0 é caminhável
 
         this.requestQueue = [];
         this.isCalculating = false;
     }
 
-    /**
-     * Sets the grid for pathfinding.
-     * @param {Array<Array<number>>} grid The 2D grid.
-     */
-    setGrid(grid) {
-        this.grid = grid;
-        this.easystar.setGrid(this.grid);
-        this.easystar.setAcceptableTiles([0]); // 0 is walkable
-    }
-
-    /**
-     * Converts world coordinates (pixels) to grid coordinates (tiles).
-     * @param {number} worldX
-     * @param {number} worldY
-     * @returns {{x: number, y: number}}
-     */
+    /** Converts world coordinates (pixels) to grid coordinates (cells). */
     worldToGrid(worldX, worldY) {
-        const gridX = Math.floor(worldX / this.cellSize);
-        const gridY = Math.floor(worldY / this.cellSize);
-        return { x: gridX, y: gridY };
+        return { x: Math.floor(worldX / this.cellSize), y: Math.floor(worldY / this.cellSize) };
     }
 
-    /**
-     * Converts grid coordinates (tiles) to world coordinates (pixels), centering in the tile.
-     * @param {number} gridX
-     * @param {number} gridY
-     * @returns {{x: number, y: number}}
-     */
+    /** Converts grid coordinates to world coordinates (pixels), centering in the cell. */
     gridToWorld(gridX, gridY) {
-        const worldX = gridX * this.cellSize + this.cellSize / 2;
-        const worldY = gridY * this.cellSize + this.cellSize / 2;
-        return { x: worldX, y: worldY };
+        return { x: gridX * this.cellSize + this.cellSize / 2, y: gridY * this.cellSize + this.cellSize / 2 };
     }
 
     /**
      * Queues a pathfinding request. The path will be calculated in a future frame.
-     * @param {number} startWorldX The starting X in world coordinates.
-     * @param {number} startWorldY The starting Y in world coordinates.
-     * @param {number} endWorldX The ending X in world coordinates.
-     * @param {number} endWorldY The ending Y in world coordinates.
-     * @param {function(Phaser.Types.Math.Vector2[] | null)} callback The function to call with the resulting path or null.
+     * @param {function(Phaser.Math.Vector2[] | null)} callback Called with the world path or null.
      */
     findPath(startWorldX, startWorldY, endWorldX, endWorldY, callback) {
-        if (!this.grid) {
-            console.error('[PathManager] Grid não definido! Certifique-se de que o Cenario gerou o grid corretamente.');
-            callback(null);
-            return;
-        }
-
-        const gridWidth = this.grid[0].length;
-        const gridHeight = this.grid.length;
-
-        let startGrid = this.worldToGrid(startWorldX, startWorldY);
-        let endGrid = this.worldToGrid(endWorldX, endWorldY);
-
-        // Garante que as coordenadas estejam dentro dos limites do grid
-        startGrid.x = Phaser.Math.Clamp(startGrid.x, 0, gridWidth - 1);
-        startGrid.y = Phaser.Math.Clamp(startGrid.y, 0, gridHeight - 1);
-        endGrid.x = Phaser.Math.Clamp(endGrid.x, 0, gridWidth - 1);
-        endGrid.y = Phaser.Math.Clamp(endGrid.y, 0, gridHeight - 1);
-
-        // Se o destino estiver bloqueado (parede), tenta achar o vizinho livre mais próximo
-        if (this.grid[endGrid.y][endGrid.x] !== 0) {
-            const nearest = this.findNearestWalkable(endGrid.x, endGrid.y);
-            if (nearest) {
-                endGrid = nearest;
-            } else {
-                // Retorna null sem spammar o console se for realmente impossível chegar
-                callback(null);
-                return;
-            }
-        }
-
-        this.requestQueue.push({ start: startGrid, end: endGrid, callback: callback });
+        this.requestQueue.push({
+            start: this.worldToGrid(startWorldX, startWorldY),
+            end: this.worldToGrid(endWorldX, endWorldY),
+            callback
+        });
     }
 
-    /**
-     * Procura a célula caminhável (0) mais próxima em um raio de busca.
-     */
-    findNearestWalkable(gridX, gridY) {
-        const gridWidth = this.grid[0].length;
-        const gridHeight = this.grid.length;
-        const searchRadius = 5; // Aumentado para procurar em até 5 tiles de distância
+    /** Monta a janela de células do trajeto. Devolve null se o destino não tem saída. */
+    buildWindow(start, end) {
+        const chunks = this.scene.chunks;
+
+        let minX = Math.min(start.x, end.x) - WINDOW_PADDING;
+        let maxX = Math.max(start.x, end.x) + WINDOW_PADDING;
+        let minY = Math.min(start.y, end.y) - WINDOW_PADDING;
+        let maxY = Math.max(start.y, end.y) + WINDOW_PADDING;
+
+        // Destino muito longe: a janela fica centrada no início e o destino é preso na borda dela
+        if (maxX - minX + 1 > MAX_WINDOW) {
+            minX = start.x - MAX_WINDOW / 2;
+            maxX = minX + MAX_WINDOW - 1;
+        }
+        if (maxY - minY + 1 > MAX_WINDOW) {
+            minY = start.y - MAX_WINDOW / 2;
+            maxY = minY + MAX_WINDOW - 1;
+        }
+
+        const grid = [];
+        for (let y = minY; y <= maxY; y++) {
+            const row = [];
+            for (let x = minX; x <= maxX; x++) row.push(chunks.isCellBlocked(x, y) ? 1 : 0);
+            grid.push(row);
+        }
+
+        const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+        const localStart = { x: clamp(start.x, minX, maxX) - minX, y: clamp(start.y, minY, maxY) - minY };
+        let localEnd = { x: clamp(end.x, minX, maxX) - minX, y: clamp(end.y, minY, maxY) - minY };
+
+        // Destino bloqueado (parede, árvore, fora do mundo): usa a célula livre mais próxima
+        if (grid[localEnd.y][localEnd.x] !== 0) {
+            localEnd = this.findNearestWalkable(grid, localEnd.x, localEnd.y);
+            if (!localEnd) return null;
+        }
+
+        return { grid, offsetX: minX, offsetY: minY, start: localStart, end: localEnd };
+    }
+
+    /** Procura a célula caminhável (0) mais próxima em um raio de busca. */
+    findNearestWalkable(grid, gridX, gridY) {
+        const height = grid.length;
+        const width = grid[0].length;
+        const searchRadius = 5;
 
         for (let r = 1; r <= searchRadius; r++) {
             for (let dy = -r; dy <= r; dy++) {
                 for (let dx = -r; dx <= r; dx++) {
                     const nx = gridX + dx;
                     const ny = gridY + dy;
-                    if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
-                        if (this.grid[ny][nx] === 0) {
-                            return { x: nx, y: ny };
-                        }
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && grid[ny][nx] === 0) {
+                        return { x: nx, y: ny };
                     }
                 }
             }
@@ -123,21 +104,26 @@ export default class PathManager {
         return null;
     }
 
-    /**
-     * This method should be called in the scene's update loop.
-     */
+    /** Chamar no update() da cena: processa uma requisição por frame. */
     update() {
-        if (this.requestQueue.length > 0 && !this.isCalculating) {
-            this.isCalculating = true;
-            const request = this.requestQueue.shift();
-            
-            this.easystar.findPath(request.start.x, request.start.y, request.end.x, request.end.y, (path) => {
-                this.isCalculating = false;
-                const worldPath = path ? path.map(p => new Phaser.Math.Vector2(this.gridToWorld(p.x, p.y))) : null;
-                request.callback(worldPath);
-            });
-            
-            this.easystar.calculate();
+        if (!this.requestQueue.length || this.isCalculating) return;
+
+        const request = this.requestQueue.shift();
+        const win = this.buildWindow(request.start, request.end);
+        if (!win) {
+            request.callback(null);
+            return;
         }
+
+        this.isCalculating = true;
+        this.easystar.setGrid(win.grid);
+        this.easystar.findPath(win.start.x, win.start.y, win.end.x, win.end.y, (path) => {
+            this.isCalculating = false;
+            const worldPath = path
+                ? path.map(p => new Phaser.Math.Vector2(this.gridToWorld(p.x + win.offsetX, p.y + win.offsetY)))
+                : null;
+            request.callback(worldPath);
+        });
+        this.easystar.calculate();
     }
 }

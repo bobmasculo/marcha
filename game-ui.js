@@ -77,7 +77,7 @@ export const GameUIMethods = {
         } else if (this.actionMode === 'shoot') {
             message = 'SHOOT MODE: Click on an enemy to shoot';
         } else {
-            message = 'War Ufo Alpha 0.129';
+            message = `Mapa ${this.scene.world.width} × ${this.scene.world.height}  ·  seed ${this.scene.world.seed}`;
         }
 
         if (window.debugText) window.debugText.setText(message);

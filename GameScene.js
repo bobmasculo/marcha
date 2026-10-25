@@ -8,6 +8,8 @@ import ShotManager from './ShotManager.js';
 import AnimationManager from './animation-manager.js';
 import GameManager from './game-manager.js';
 import { getMission } from './progression.js';
+import { buildWorld, CHUNK_SIZE } from './world-gen.js';
+import ChunkManager from './chunk-manager.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -21,6 +23,7 @@ export default class GameScene extends Phaser.Scene {
         this.npcManager = null;
         this.minimap = null; // Adicionar propriedade para o Minimap
         this.pathManager = null; // Gerenciador de pathfinding
+        this.chunks = null; // Mundo aberto por pedaços
         this.shotManager = null; // Gerenciador de tiros
     }
  
@@ -30,6 +33,9 @@ export default class GameScene extends Phaser.Scene {
         this.initialGameData = data;
         this.missionNumber = (data && data.missionNumber) ? data.missionNumber : 1;
         this.mission = getMission(this.missionNumber);
+        // Cada partida sorteia uma seed nova; passar data.seed repete o mesmo mapa
+        this.seed = (data && data.seed !== undefined) ? data.seed : Math.floor(Math.random() * 4294967296);
+        this.world = buildWorld(this.mission, this.seed);
     }
 
     preload() {
@@ -156,24 +162,23 @@ export default class GameScene extends Phaser.Scene {
 
 
 
-        // Criar cenário
-        this.meuCenario.criarChao('terra', 3300, 2200);
-        
-        
-        this.meuCenario.mapa(mapaArray);
-        this.meuCenario.obstaculos();
-        this.meuCenario.configurarGridNavigation(3300, 2200);
+        // --- MUNDO ---
+        const world = this.world;
+        this.physics.world.setBounds(0, 0, world.width, world.height);
+        this.cameras.main.setBounds(0, 0, world.width, world.height);
+        this.cameras.main.centerOn(world.start.x, world.start.y);
 
-        // Cria o PathManager DEPOIS que o grid do cenário foi configurado
-        this.pathManager = new PathManager(this, this.meuCenario.grid, this.meuCenario.cellSize);
+        // Grupo e animações dos NPCs; os aliens em si são criados pelos pedaços
+        this.npcManager.create();
+        this.chunks = new ChunkManager(this, world);
+        this.pathManager = new PathManager(this, this.meuCenario.cellSize);
 
+        // Carrega de uma vez o mundo ao redor do início
+        this.chunks.update([{ x: world.start.x, y: world.start.y, rx: 4, ry: 3 }], true);
 
         // Adiciona colisão entre JOGADORES e o CENÁRIO (obstáculos e animados)
         this.physics.add.collider(this.gameManager.players, this.meuCenario.obstaclesGroup);
         this.physics.add.collider(this.gameManager.players, this.meuCenario.animatedGroup);
-
-        // Cria os NPCs no mundo
-        this.npcManager.create();
 
         // Adiciona colisão entre NPCs e o CENÁRIO
         // FIX: Adicionado processCallback para ignorar objetos com blocking: false
@@ -196,11 +201,7 @@ export default class GameScene extends Phaser.Scene {
             }
         );
 
-        // --- LÓGICA DE MINERAÇÃO ---
-        // Gera os minérios no mapa
-        this.meuCenario.createOreField(this.mission.ores);
-
-        // Sobreposição entre players e minérios
+        // Sobreposição entre players e minérios (os minérios vêm dos pedaços)
         this.physics.add.overlap(this.gameManager.players, this.meuCenario.oresGroup, (player, ore) => {
             if (player.playerType === 'minerador') {
                 this.gameManager.collectOre(player, ore);
@@ -208,48 +209,20 @@ export default class GameScene extends Phaser.Scene {
         });
 
         // Adiciona colisão entre JOGADORES e NPCs (Evita passar por cima)
-        this.physics.add.collider(
-            this.gameManager.players, 
-            this.npcManager.npcs, 
-            (player, npc) => {
-                // Callback de colisão: A física para o movimento, e o servidor detecta a proximidade para atacar.
-            }
-        );
+        this.physics.add.collider(this.gameManager.players, this.npcManager.npcs);
 
-        // Configurar cena
-        this.physics.world.setBounds(-100, -50, 3300, 2200);
-        this.cameras.main.setBounds(-100, -50, 3300, 2200);
-        this.cameras.main.centerOn(800, 800);
-
-        // --- CONFIGURAÇÃO VISUAL DA NÉVOA DE GUERRA (OVERLAY) ---
-        // 1. Cria uma textura de renderização para servir de máscara (preta por padrão)
-        this.fowRT = this.make.renderTexture({ width: 3500, height: 2300 }, false);
-        
-        // 2. Cria o overlay preto semi-transparente que cobre o mapa
-        this.fowOverlay = this.add.rectangle(-100, -50, 3500, 2300, 0x000000, 0.65)
-            .setOrigin(0)
-            .setDepth(9990); // Acima do cenário e sprites, abaixo da UI
-
-        // 3. Cria o "pincel" de visão (um círculo branco que será desenhado na máscara)
+        // --- NÉVOA DE GUERRA ---
+        // A textura é criada sob demanda (updateFogOfWar) e acompanha a câmera, não o mapa inteiro
+        this.fowRT = null;
         this.visionBrush = this.make.graphics({ x: 0, y: 0, add: false });
         this.visionBrush.fillStyle(0xffffff, 1);
         this.visionBrush.fillCircle(0, 0, GAME_CONFIG.PLAYER_VISION_RANGE || 600);
 
-        // 4. Aplica a máscara invertida (onde desenharmos branco no RT, o overlay ficará transparente)
-        const fowMask = new Phaser.Display.Masks.BitmapMask(this, this.fowRT);
-        fowMask.invertAlpha = true;
-        this.fowOverlay.setMask(fowMask);
-        this.fowOverlay.setVisible(GAME_CONFIG.FOG_OF_WAR_ENABLED);
-
         // Configurar UI
         UIManager.createSimpleUI(this);
 
-        // --- CRIAR MINIMAPA ---
-        const minimapWidth = 200;
-        const minimapHeight = 150;
-        const minimapX = 10; // Posição X no canto superior esquerdo
-        const minimapY = 10; // Posição Y no canto superior esquerdo
-        this.minimap = new Minimap(this, minimapX, minimapY, minimapWidth, minimapHeight, { worldWidth: 3300, worldHeight: 2200 });
+        // --- RADAR (janela de 3000 × 2250 px em volta do comandante) ---
+        this.minimap = new Minimap(this, 10, 10, 200, 150, { viewWidth: 3000, viewHeight: 2250 }, world);
 
         // Usa os dados recebidos da LobbyScene para configurar o jogo
         // **NOVA ABORDAGEM**: Pega os dados de início diretamente do NetworkManager.
@@ -267,16 +240,30 @@ export default class GameScene extends Phaser.Scene {
         if (this.gameManager) {
             this.gameManager.update();
 
+            const commander = this.gameManager.commander;
+            const focus = commander ? { x: commander.x, y: commander.y } : this.world.start;
+
+            // Mundo por pedaços: carrega o que a câmera e o comandante precisam, descarta o resto
+            const view = this.cameras.main.worldView;
+            this.chunks.update([
+                { x: view.centerX, y: view.centerY, rx: Math.ceil(view.width / 2 / CHUNK_SIZE) + 1, ry: Math.ceil(view.height / 2 / CHUNK_SIZE) + 1 },
+                { x: focus.x, y: focus.y, rx: 2, ry: 2 }
+            ]);
+            if (commander && commander.active) {
+                this.gameManager.registerExploration(this.chunks.markVisited(commander.x, commander.y, 1));
+            }
+
             // Atualiza a QuadTree com a posição de todos os personagens vivos
             const allEntities = [
                 ...this.gameManager.players.getChildren(),
                 ...this.npcManager.npcs.getChildren()
             ];
-            this.meuCenario.updateQuadTree(allEntities);
+            this.meuCenario.updateQuadTree(allEntities, focus);
+            if (this.meuCenario.gridVisible && this.game.getFrame() % 30 === 0) this.meuCenario.drawGrid();
 
             this.updateFogOfWar();
             if (this.minimap) {
-                this.minimap.update(this.gameManager.players.getChildren(), this.npcManager.npcs.getChildren(), 'player');
+                this.minimap.update(this.gameManager.players.getChildren(), this.npcManager.npcs.getChildren(), 'player', { focus, chunks: this.chunks });
 
                 // --- LÓGICA PARA O MINIMAPA ACOMPANHAR O ZOOM ---
                 const cam = this.cameras.main;
@@ -341,10 +328,15 @@ export default class GameScene extends Phaser.Scene {
         
         const isEnabled = typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.FOG_OF_WAR_ENABLED;
 
-        // Atualiza a visibilidade do overlay preto
-        if (this.fowOverlay) this.fowOverlay.setVisible(isEnabled);
-        // Limpa a textura de máscara para redesenhar a visão atual
-        if (this.fowRT) this.fowRT.clear();
+        // A névoa é uma textura do tamanho da área visível (zoom mínimo 0.5), colada na câmera a cada frame
+        if (isEnabled && !this.fowRT) {
+            const margin = 100;
+            this.fowMargin = margin;
+            this.fowRT = this.add.renderTexture(0, 0, Math.ceil(this.scale.width / 0.5) + margin * 2, Math.ceil(this.scale.height / 0.5) + margin * 2)
+                .setOrigin(0)
+                .setDepth(9990); // Acima do cenário e sprites, abaixo da UI
+        }
+        if (this.fowRT) this.fowRT.setVisible(isEnabled);
 
         // Pega todos os jogadores e todos os NPCs para a checagem
         const players = this.gameManager.players.getChildren();
@@ -364,16 +356,17 @@ export default class GameScene extends Phaser.Scene {
         // Unidades que pertencem ao jogador e dão visão (Soldados)
         const myVisionUnits = players.filter(u => u.active);
 
-        // DESENHA OS BURACOS DE VISÃO: Para cada unidade minha, "fura" o overlay
+        // DESENHA OS BURACOS DE VISÃO: escurece a área da câmera e apaga um círculo por unidade
+        const view = this.cameras.main.worldView;
+        this.fowRT.setPosition(view.x - this.fowMargin, view.y - this.fowMargin);
+        this.fowRT.clear();
+        this.fowRT.fill(0x000000, 0.65);
         myVisionUnits.forEach(u => {
-            // Ajusta o tamanho do pincel de visão para o alcance desta unidade específica
             const vRange = u.visionRange || 50;
             this.visionBrush.clear();
             this.visionBrush.fillStyle(0xffffff, 1);
             this.visionBrush.fillCircle(0, 0, vRange);
-
-            // Offset de +100 e +50 porque o RenderTexture e o Overlay começam em (-100, -50)
-            this.fowRT.draw(this.visionBrush, u.x + 100, u.y + 50);
+            this.fowRT.erase(this.visionBrush, u.x - this.fowRT.x, u.y - this.fowRT.y);
         });
 
         allEntities.forEach(unit => {

@@ -503,6 +503,7 @@ export const CombatMethods = {
                 }
                 if (npc.healthText) npc.healthText.setVisible(false);
                 this.showMessage('NPC Eliminated!');
+                this.scene.chunks.markKilled(npc.getData('spawnId')); // não volta quando o pedaço recarregar
                 this.registerKill();
 
                 // Remove o NPC do jogo de vez: some com um fade e o sprite é destruído.

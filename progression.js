@@ -7,18 +7,31 @@
  *   'transmit'  - chegar a 100% no botão TRANSMITIR
  *   'eliminate' - eliminar `goal` aliens
  *   'mine'      - coletar `goal` moedas de minério
+ *   'explore'   - explorar `goal` áreas (pedaços de 500 × 500 px) do mapa
+ *
+ * map: tamanho do mundo (small | medium | large | huge | vast), abertura (1 = quase sem obstáculos)
+ * e, opcionalmente, aliensPerChunk e veinChance. Ver world-gen.js.
  */
 export const MISSIONS = [
     { name: 'Primeiro Contato', briefing: 'Restabeleça o contato com a base.',
-      npcCount: 20, ores: 1500, startCoins: 50, objective: { type: 'transmit' } },
+      npcCount: 20, ores: 1500, startCoins: 50, objective: { type: 'transmit' },
+      map: { size: 'small', openness: 0.9 } },
     { name: 'Limpeza de Área', briefing: 'Elimine a ameaça alienígena.',
-      npcCount: 30, ores: 1500, startCoins: 75, objective: { type: 'eliminate', goal: 15 } },
+      npcCount: 30, ores: 1500, startCoins: 75, objective: { type: 'eliminate', goal: 15 },
+      map: { size: 'medium', openness: 0.85 } },
     { name: 'Corrida do Ouro', briefing: 'Minere o suficiente para financiar a guerra.',
-      npcCount: 35, ores: 2500, startCoins: 50, objective: { type: 'mine', goal: 600 } },
+      npcCount: 35, ores: 2500, startCoins: 50, objective: { type: 'mine', goal: 600 },
+      map: { size: 'large', openness: 0.85 } },
     { name: 'Silêncio de Rádio', briefing: 'Transmita a mensagem sob forte presença inimiga.',
-      npcCount: 55, ores: 2500, startCoins: 50, objective: { type: 'transmit' } },
+      npcCount: 55, ores: 2500, startCoins: 50, objective: { type: 'transmit' },
+      map: { size: 'medium', openness: 0.75 } },
     { name: 'Extermínio', briefing: 'Derrube o enxame.',
-      npcCount: 55, ores: 2500, startCoins: 100, objective: { type: 'eliminate', goal: 40 } }
+      npcCount: 55, ores: 2500, startCoins: 100, objective: { type: 'eliminate', goal: 40 },
+      map: { size: 'huge', openness: 0.8 } },
+    // Mundo aberto de 300000 × 200000 px: só os pedaços perto da câmera existem
+    { name: 'Fronteira', briefing: 'Explore o território desconhecido.',
+      npcCount: 0, ores: 0, startCoins: 100, objective: { type: 'explore', goal: 150 },
+      map: { size: 'vast', openness: 0.9, aliensPerChunk: 0.5, veinChance: 0.3 } }
 ];
 
 /** Depois da última missão a lista recomeça com mais inimigos. */
@@ -36,6 +49,7 @@ export const ProgressionMethods = {
         this.mission = this.scene.mission;
         this.kills = 0;
         this.coinsMined = 0;
+        this.explored = 0;
         // O registry sobrevive ao restart da cena: upgrades valem de uma missão para a outra
         this.upgrades = { damage: 0, health: 0, mining: 0, range: 0, ...(this.scene.registry.get('upgrades') || {}) };
     },
@@ -92,6 +106,14 @@ export const ProgressionMethods = {
         this.checkObjective();
     },
 
+    /** Chamado a cada frame com o total de áreas exploradas; só reage quando o número muda. */
+    registerExploration(count) {
+        if (count === this.explored) return;
+        this.explored = count;
+        this.updateObjectiveUI();
+        this.checkObjective();
+    },
+
     registerOreMined(value) {
         this.coinsMined += value;
         this.updateObjectiveUI();
@@ -104,6 +126,8 @@ export const ProgressionMethods = {
             this.handleGameOver({ winner: 'player', reason: 'Área limpa' });
         } else if (type === 'mine' && this.coinsMined >= goal) {
             this.handleGameOver({ winner: 'player', reason: 'Meta de mineração atingida' });
+        } else if (type === 'explore' && this.explored >= goal) {
+            this.handleGameOver({ winner: 'player', reason: 'Território explorado' });
         }
     },
 
@@ -112,6 +136,7 @@ export const ProgressionMethods = {
         const title = `MISSÃO ${this.mission.number}: ${this.mission.name.toUpperCase()}`;
         if (type === 'eliminate') return `${title}\nEliminar aliens: ${this.kills}/${goal}`;
         if (type === 'mine') return `${title}\nMinerar: $${this.coinsMined}/${goal}`;
+        if (type === 'explore') return `${title}\nExplorar: ${this.explored}/${goal} áreas`;
         return `${title}\nTransmitir: ${this.messageProgress}%`;
     },
 

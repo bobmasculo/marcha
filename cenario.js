@@ -1,4 +1,5 @@
 // cenario.js
+import { CHUNK_SIZE, CELL_SIZE, CELLS_PER_CHUNK } from './world-gen.js';
 
 /**
  * Classe auxiliar para definir áreas retangulares na QuadTree.
@@ -68,14 +69,12 @@ class QuadTree {
 export default class Cenario {
     constructor(scene) {
         this.scene = scene;
-        this.grid = null;
+        this.cellSize = CELL_SIZE;
         this.gridGraphics = null;
         this.gridVisible = false;
-        this.obstacles = [];
-        // Inicializa grupos de física para gerenciar colisões
+        // Grupos de física: os pedaços do mundo (chunk-manager.js) adicionam e removem os objetos
         this.obstaclesGroup = this.scene.physics.add.staticGroup();
         this.animatedGroup = this.scene.physics.add.group({ immovable: true, allowGravity: false });
-        this.sceneryGroup = this.scene.add.group(); // Grupo para objetos puramente visuais (sem colisão)
         this.highlightGraphics = this.scene.add.graphics().setDepth(999); // Gráfico para o quadrado verde/vermelho
         this.quadTree = null;
         this.oresGroup = this.scene.physics.add.staticGroup();
@@ -83,12 +82,10 @@ export default class Cenario {
 
     /**
      * Reconstrói a QuadTree com as entidades atuais (Players e NPCs).
+     * A área acompanha o foco (comandante): o mundo pode ser enorme, e só interessa quem está perto.
      */
-    updateQuadTree(entities) {
-        // Expandimos levemente a área (buffer de 200px) para garantir que 
-        // entidades nas bordas extremas do mapa ainda sejam detectadas.
-        // Centro: 1600, 1075 | Meia-Largura: 1900 | Meia-Altura: 1300
-        const boundary = new QuadRect(1600, 1075, 1900, 1300);
+    updateQuadTree(entities, focus) {
+        const boundary = new QuadRect(focus.x, focus.y, 3500, 2500);
         this.quadTree = new QuadTree(boundary, 4);
 
         entities.forEach(entity => {
@@ -107,248 +104,7 @@ export default class Cenario {
         return this.quadTree.query(range);
     }
 
-    /**
-     * Cria campos de minério no mapa com lógica de agrupamento (veios).
-     */
-    createOreField(totalCount) {
-        console.log(`[Cenario] Gerando ${totalCount} minérios...`);
-        const veinsCount = 15; // Número de "veios" ou clusters
-        const oresPerVein = Math.floor(totalCount / veinsCount);
-
-        for (let v = 0; v < veinsCount; v++) {
-            // Centro do veio
-            const centerX = Phaser.Math.Between(200, 3100);
-            const centerY = Phaser.Math.Between(200, 2000);
-
-            // Se o centro estiver bloqueado, pula este veio
-            if (this.isWorldPositionBlocked(centerX, centerY)) {
-                v--; continue;
-            }
-
-            for (let i = 0; i < oresPerVein; i++) {
-                // Espalha ao redor do centro usando distribuição normal/gaussiana para parecer natural
-                const x = centerX + Phaser.Math.Between(-150, 150);
-                const y = centerY + Phaser.Math.Between(-150, 150);
-
-                if (x < 0 || x > 3300 || y < 0 || y > 2200 || this.isWorldPositionBlocked(x, y)) {
-                    continue;
-                }
-
-                // Cria o minério como um pequeno quadrado azul
-                const ore = this.scene.add.rectangle(x, y, 8, 8, 0x0000ff);
-                this.scene.physics.add.existing(ore, true); // true = static body
-                
-                // Configura dados do recurso
-                ore.setData('type', 'ore');
-                ore.setData('value', GAME_CONFIG.ORE_VALUE || 10);
-                
-                this.oresGroup.add(ore);
-            }
-        }
-    }
-    
-  criarChao(texture, width, height, offsetX = -100, offsetY = -50) {
-    const tile = this.scene.textures.get(texture).getSourceImage();
-    const tileWidth = tile.width;
-    const tileHeight = tile.height;
-
-    for (let x = offsetX; x < width + offsetX; x += tileWidth) {
-        for (let y = offsetY; y < height + offsetY; y += tileHeight) {
-            this.scene.add
-                .image(x, y, texture)
-                .setOrigin(0, 0)
-                .setDepth(-1);
-        }
-    }
-}
-
-
-    
-    mapa(items) {
-        this.obstacles = items;
-    }
-    
-    obstaculos() {
-        if (!this.obstacles) return;
-
-        this.obstacles.forEach(obsData => {
-            if (obsData.tipo === 'obstaculo') {
-                // Usar staticImage é mais apropriado para obstáculos fixos
-                const obstaculo = this.obstaclesGroup.create(obsData.x, obsData.y, obsData.id);
-
-                if (obsData.width && obsData.height) {
-                    obstaculo.setSize(obsData.width, obsData.height);
-                    obstaculo.setDisplaySize(obsData.width, obsData.height);
-                }
-
-                // 1. Aplica o ângulo se ele for definido
-                if (obsData.angle) {
-                    obstaculo.setAngle(obsData.angle);
-                }
-
-                // Configura propriedade blocking
-                obstaculo.setData('blocking', obsData.blocking);
-                if (obsData.blocking === false) {
-                    obstaculo.body.checkCollision.none = true;
-                }
-
-                // 2. Atualiza o corpo físico para a nova rotação (ESSENCIAL)
-                obstaculo.refreshBody();
-            } else if (obsData.tipo === 'animado') {
-                // Cria o sprite usando o atlas definido
-                const animado = this.scene.physics.add.sprite(obsData.x, obsData.y, obsData.atlas);
-                this.animatedGroup.add(animado); // Adiciona ao grupo para colisão
-
-                // Define a escala se fornecida
-                if (obsData.scale) {
-                    animado.setScale(obsData.scale);
-                }
-
-                // Define largura e altura customizadas se fornecidas (em pixels)
-                if (obsData.width && obsData.height) {
-                    animado.setDisplaySize(obsData.width, obsData.height);
-                }
-
-                // Define o ângulo se fornecido
-                if (obsData.angle) {
-                    animado.setAngle(obsData.angle);
-                }
-
-                // Configura propriedade blocking
-                animado.setData('blocking', obsData.blocking);
-                if (obsData.blocking === false) {
-                    animado.body.checkCollision.none = true;
-                }
-
-                // Cria e reproduz a animação baseada no prefixo e JSON do atlas
-                if (obsData.anim) {
-                    if (!this.scene.anims.exists(obsData.anim)) {
-                        let frames;
-                        if (obsData.prefix) {
-                            // Se tem prefixo, usa lógica de Atlas
-                            frames = this.scene.anims.generateFrameNames(obsData.atlas, {
-                                prefix: obsData.prefix,
-                                start: obsData.start || 0,
-                                end: obsData.end || 0,
-                                zeroPad: obsData.zeroPad || 0,
-                                suffix: obsData.suffix || ''
-                            });
-                        } else {
-                            // Se não tem prefixo, usa lógica de Spritesheet (64x64)
-                            frames = this.scene.anims.generateFrameNumbers(obsData.atlas, {
-                                start: obsData.start || 0,
-                                end: obsData.end || 0
-                            });
-                        }
-
-                        this.scene.anims.create({
-                            key: obsData.anim,
-                            frames: frames,
-                            frameRate: obsData.frameRate || 10,
-                            repeat: -1
-                        });
-                    }
-                    animado.play(obsData.anim);
-                }
-
-                // Configurações de física para objeto estático/imóvel
-                animado.setImmovable(true);
-                animado.body.setAllowGravity(false);
-                animado.refreshBody();
-            } else if (obsData.tipo === 'cenario') {
-                // Lógica para objetos de cenário (sem física/colisão)
-                let cenarioObj;
-
-                if (obsData.atlas) {
-                    // Se tiver atlas, é animado
-                    cenarioObj = this.scene.add.sprite(obsData.x, obsData.y, obsData.atlas);
-                    
-                    // Configura animação se houver
-                    if (obsData.anim) {
-                        if (!this.scene.anims.exists(obsData.anim)) {
-                            let frames;
-                            if (obsData.prefix) {
-                                // Se tem prefixo, usa lógica de Atlas
-                                frames = this.scene.anims.generateFrameNames(obsData.atlas, {
-                                    prefix: obsData.prefix,
-                                    start: obsData.start || 0,
-                                    end: obsData.end || 0,
-                                    zeroPad: obsData.zeroPad || 0,
-                                    suffix: obsData.suffix || ''
-                                });
-                            } else {
-                                // Se não tem prefixo, usa lógica de Spritesheet (64x64)
-                                frames = this.scene.anims.generateFrameNumbers(obsData.atlas, {
-                                    start: obsData.start || 0,
-                                    end: obsData.end || 0
-                                });
-                            }
-                            this.scene.anims.create({
-                                key: obsData.anim,
-                                frames: frames,
-                                frameRate: obsData.frameRate || 10,
-                                repeat: -1
-                            });
-                        }
-                        cenarioObj.play(obsData.anim);
-                    }
-                } else {
-                    // Se não, é imagem estática
-                    cenarioObj = this.scene.add.image(obsData.x, obsData.y, obsData.id);
-                }
-
-                // Configurações comuns
-                if (obsData.width && obsData.height) {
-                    cenarioObj.setDisplaySize(obsData.width, obsData.height);
-                } else if (obsData.scale) {
-                    cenarioObj.setScale(obsData.scale);
-                }
-                if (obsData.angle) cenarioObj.setAngle(obsData.angle);
-
-                // Define profundidade (Depth) usando Y para z-sort correto com jogadores
-                cenarioObj.setDepth(obsData.y);
-
-                // Garante explicitamente que objetos de cenário não bloqueiam
-                cenarioObj.setData('blocking', false);
-
-                this.sceneryGroup.add(cenarioObj);
-            }
-        });
-    }
-    
-    configurarGridNavigation(width, height) {
-        this.gridWidth = width;
-        this.gridHeight = height;
-        this.cellSize = 50;
-
-        // --- GERAÇÃO AUTOMÁTICA DO GRID PARA PATHFINDING ---
-        const cols = Math.ceil(this.gridWidth / this.cellSize);
-        const rows = Math.ceil(this.gridHeight / this.cellSize);
-        
-        this.grid = []; // Inicializa a matriz do grid
-
-        for (let y = 0; y < rows; y++) {
-            const row = [];
-            for (let x = 0; x < cols; x++) {
-                // Aumentamos a margem de segurança (offset) para 0.45 (quase a borda total)
-                // Isso garante que o personagem nunca chegue perto o suficiente da parede para "raspar"
-                const cx = x * this.cellSize + this.cellSize / 2;
-                const cy = y * this.cellSize + this.cellSize / 2;
-                const margin = this.cellSize * 0.45; 
-
-                const blocked = this.isWorldPositionBlocked(cx, cy) || 
-                                this.isWorldPositionBlocked(cx - margin, cy - margin) ||
-                                this.isWorldPositionBlocked(cx + margin, cy + margin) ||
-                                this.isWorldPositionBlocked(cx + margin, cy - margin) ||
-                                this.isWorldPositionBlocked(cx - margin, cy + margin);
-
-                row.push(blocked ? 1 : 0);
-            }
-            this.grid.push(row);
-        }
-        console.log(`[Cenario] Grid de navegação gerado: ${cols}x${rows}`);
-    }
-    
+    // ---------------------------------------------------------------- debug do grid (tecla G)
     toggleGrid() {
         if (!this.gridGraphics) {
             this.gridGraphics = this.scene.add.graphics().setDepth(1000);
@@ -357,79 +113,55 @@ export default class Cenario {
         this.gridGraphics.setVisible(this.gridVisible);
         if (this.gridVisible) {
             this.drawGrid();
+        } else {
+            this.gridGraphics.clear();
         }
     }
-    
-    drawGrid() {
-        if (!this.gridGraphics || !this.grid) return;
-        this.gridGraphics.clear();
-        
-        // Desenha as linhas do grid para orientação visual
-        this.gridGraphics.lineStyle(1, 0xffffff, 0.1);
-        for (let x = 0; x <= this.gridWidth; x += this.cellSize) {
-            this.gridGraphics.lineBetween(x, 0, x, this.gridHeight);
-        }
-        for (let y = 0; y <= this.gridHeight; y += this.cellSize) {
-            this.gridGraphics.lineBetween(0, y, this.gridWidth, y);
-        }
 
-        // Pinta as células bloqueadas (valor 1 no grid) em vermelho translúcido
-        this.gridGraphics.fillStyle(0xff0000, 0.3); 
-        for (let y = 0; y < this.grid.length; y++) {
-            for (let x = 0; x < this.grid[y].length; x++) {
-                if (this.grid[y][x] === 1) {
-                    this.gridGraphics.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
+    /** Desenha as células bloqueadas dos pedaços carregados. Chamado de tempos em tempos enquanto ligado. */
+    drawGrid() {
+        if (!this.gridGraphics) return;
+        this.gridGraphics.clear();
+        this.gridGraphics.fillStyle(0xff0000, 0.3);
+        this.scene.chunks.loaded.forEach(chunk => {
+            const ox = chunk.data.cx * CHUNK_SIZE;
+            const oy = chunk.data.cy * CHUNK_SIZE;
+            for (let gy = 0; gy < CELLS_PER_CHUNK; gy++) {
+                for (let gx = 0; gx < CELLS_PER_CHUNK; gx++) {
+                    if (chunk.data.cells[gy * CELLS_PER_CHUNK + gx] === 1) {
+                        this.gridGraphics.fillRect(ox + gx * CELL_SIZE, oy + gy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    }
                 }
             }
-        }
-    }
-    
-    
-    isWorldPositionBlocked(x, y) {
-        // Verifica colisão com obstáculos estáticos
-        const staticBlocked = this.obstaclesGroup.getChildren().some(obs => {
-            if (obs.getData('blocking') === false) return false;
-            return obs.active && obs.getBounds().contains(x, y);
+            this.gridGraphics.lineStyle(1, 0xffffff, 0.15);
+            this.gridGraphics.strokeRect(ox, oy, CHUNK_SIZE, CHUNK_SIZE);
         });
-        if (staticBlocked) return true;
+    }
 
-        // Verifica colisão com objetos animados
-        const animBlocked = this.animatedGroup.getChildren().some(obs => {
-            if (obs.getData('blocking') === false) return false;
-            return obs.active && obs.getBounds().contains(x, y);
-        });
-        return animBlocked;
+    isWorldPositionBlocked(x, y) {
+        return this.scene.chunks.isBlockedAt(x, y);
     }
-    
+
     /**
      * Verifica se existe uma linha direta sem obstáculos entre dois pontos.
-     * @param {number} x1 Origem X
-     * @param {number} y1 Origem Y
-     * @param {number} x2 Destino X
-     * @param {number} y2 Destino Y
-     * @returns {boolean} True se a visão estiver limpa, False se houver parede.
+     * @returns {boolean} True se a visão estiver limpa, False se houver obstáculo.
      */
     checkLineOfSight(x1, y1, x2, y2) {
-        if (!this.grid) return true;
+        const chunks = this.scene.chunks;
+        if (!chunks) return true;
 
-        const cellSize = this.cellSize || 50;
         const line = new Phaser.Geom.Line(x1, y1, x2, y2);
-        
-        // Otimização: Usa o algoritmo de Bresenham para checar apenas as células do grid
-        const points = Phaser.Geom.Line.BresenhamPoints(line, cellSize / 2);
+        // Bresenham: confere apenas as células do grid que a linha atravessa
+        const points = Phaser.Geom.Line.BresenhamPoints(line, CELL_SIZE / 2);
 
         for (const p of points) {
-            const gx = Math.floor(p.x / cellSize);
-            const gy = Math.floor(p.y / cellSize);
-
-            // Se encontrar uma célula bloqueada (1) no grid, visão obstruída
-            if (this.grid[gy] && this.grid[gy][gx] === 1) {
+            if (chunks.isCellBlocked(Math.floor(p.x / CELL_SIZE), Math.floor(p.y / CELL_SIZE))) {
                 return false;
             }
         }
         return true;
     }
-    
+
     highlightCell(x, y, isValid) {
         this.highlightGraphics.clear();
         const size = this.cellSize || 50;

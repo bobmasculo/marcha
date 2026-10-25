@@ -41,8 +41,10 @@ npm start        # http://localhost:8080
 | `economy.js` | Moedas, transmissão, mineração e inventário |
 | `game-ui.js` | Painel de stats, mensagens e tela de fim de jogo |
 | `npc-manager.js` | IA dos aliens (patrulha, perseguição, recuo) e drops |
-| `cenario.js`, `path-manager.js` | Mapa, grid, linha de visão e pathfinding (EasyStar) |
-| `ShotManager.js`, `animation-manager.js`, `sound-manager.js`, `minimap.js`, `ui-manager.js` | Efeitos, animações, áudio, minimapa e HUD |
+| `world-gen.js` | Geração determinística do mundo por pedaços de 500 × 500 px (obstáculos, minério, aliens). Sem dependência do Phaser |
+| `chunk-manager.js` | Cria e destrói os objetos dos pedaços perto da câmera; lembra minério coletado e aliens mortos |
+| `cenario.js`, `path-manager.js` | Colisão, linha de visão e pathfinding (EasyStar, em janelas de células) |
+| `ShotManager.js`, `animation-manager.js`, `sound-manager.js`, `minimap.js`, `ui-manager.js` | Efeitos, animações, áudio, radar e HUD |
 
 ## Itens
 
@@ -58,6 +60,24 @@ Todos os itens ficam na tabela `ITEMS` em `config.js`. Para criar um: uma entrad
 | Adrenalina | Comandante 50% mais rápido por 8 s |
 
 Item no chão some em 30 s. Inventário: 4 slots, compartilhado e guardado no comandante.
+
+## Mundo aberto
+
+O mapa não existe inteiro: ele é gerado por pedaços de 500 × 500 px a partir de uma seed, e só os pedaços perto da câmera e do comandante existem na memória. Por isso o tamanho do mundo não pesa: a missão 6 roda em **300000 × 200000 px** (240 mil pedaços) com cerca de 300 objetos na cena.
+
+| Tamanho | Mundo (px) |
+|---|---|
+| `small` | 2500 × 1500 |
+| `medium` | 3500 × 2500 |
+| `large` | 4500 × 3000 |
+| `huge` | 5500 × 3500 |
+| `vast` | 300000 × 200000 |
+
+- Cada missão escolhe tamanho e abertura em `map` (`progression.js`). Cada partida sorteia uma seed, mostrada no topo da tela; `scene.start('GameScene', { missionNumber, seed })` repete o mapa.
+- Os obstáculos são pequenos grupos (ruínas, bosques, pirâmides raras) afastados da borda do pedaço, então sempre há caminho entre dois pontos.
+- Pathfinding e linha de visão consultam o gerador, sem grid do mapa inteiro.
+- O radar (canto superior esquerdo) mostra uma janela de 3000 × 2250 px em volta do comandante, as áreas já exploradas e as bordas do mundo.
+- Limite prático: coordenadas até cerca de 1 milhão de px; acima disso a precisão de ponto flutuante do WebGL começa a tremer a imagem.
 
 ## Criar uma missão
 

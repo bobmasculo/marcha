@@ -1,4 +1,5 @@
 import { MISSIONS, getMission } from './progression.js';
+import { WORLD_SIZES } from './world-gen.js';
 
 // Paleta do lobby
 const COLOR = {
@@ -291,6 +292,7 @@ export default class LobbyScene extends Phaser.Scene {
     objectiveText(objective) {
         if (objective.type === 'eliminate') return `Objetivo: eliminar ${objective.goal} aliens`;
         if (objective.type === 'mine') return `Objetivo: minerar $${objective.goal}`;
+        if (objective.type === 'explore') return `Objetivo: explorar ${objective.goal} áreas do mapa`;
         return 'Objetivo: transmitir a mensagem até 100%';
     }
 
@@ -301,7 +303,9 @@ export default class LobbyScene extends Phaser.Scene {
         this.missionName.setText(mission.name.toUpperCase());
         this.missionBriefing.setText(mission.briefing);
         this.missionObjective.setText(this.objectiveText(mission.objective));
-        this.missionDetails.setText(`Aliens: ${mission.npcCount}   ·   Minério: ${mission.ores}   ·   Moedas iniciais: $${mission.startCoins}`);
+        const size = WORLD_SIZES[mission.map.size];
+        const fmt = n => n.toLocaleString('pt-BR');
+        this.missionDetails.setText(`Mapa: ${fmt(size.width)} × ${fmt(size.height)} px   ·   Moedas iniciais: $${mission.startCoins}`);
         this.arrowPrev.setAlpha(this.currentMission > 1 ? 1 : 0.2);
         this.arrowNext.setAlpha(this.currentMission < MISSIONS.length ? 1 : 0.2);
     }
