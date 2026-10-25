@@ -75,7 +75,7 @@ export default class LobbyScene extends Phaser.Scene {
         }
 
         // Subtítulo do lobby
-        const lobbySubtitle = this.add.text(0, 100, 'Alpha 0.33', {
+        const lobbySubtitle = this.add.text(0, 100, 'Alpha 0.35 · build 25-10', {
             fontSize: '28px',
             fill: '#ffffff',
             fontFamily: 'Arial, sans-serif',
