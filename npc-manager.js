@@ -793,14 +793,14 @@ export default class NpcManager {
      * Lógica de coleta de drops (rodada com frequência reduzida).
      */
     updateDropCollection(players) {
+        const gm = this.scene.gameManager;
         Object.values(this.activeDrops).forEach(drop => {
-            players.forEach(p => {
-                if (p.active && p.health > 0) {
-                    if (Phaser.Math.Distance.Between(p.x, p.y, drop.x, drop.y) < 60) {
-                        this.handleItemPickedUp({ dropId: drop.id, pickerId: p.id, itemId: drop.itemId });
-                    }
-                }
-            });
+            // Inventário cheio: o item continua no chão
+            if (!gm.canPickUp(drop.itemId)) return;
+            const picker = players.find(p =>
+                p.active && p.health > 0 && Phaser.Math.Distance.Between(p.x, p.y, drop.x, drop.y) < 60
+            );
+            if (picker) this.handleItemPickedUp({ dropId: drop.id, pickerId: picker.id, itemId: drop.itemId });
         });
     }
 

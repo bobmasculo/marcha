@@ -354,8 +354,9 @@ export default class GameScene extends Phaser.Scene {
         // Verifica se a configuração global existe e se a Fog of War está ativa
         if (!isEnabled) {
             // Se FOG está DESATIVADO, torna todos visíveisok
+            // Unidades inativas (corpos já escondidos) não podem voltar a aparecer
             allEntities.forEach(unit => {
-                unit.setVisible(true);
+                if (unit.active) unit.setVisible(true);
             });
             return;
         }
@@ -376,6 +377,7 @@ export default class GameScene extends Phaser.Scene {
         });
 
         allEntities.forEach(unit => {
+            if (!unit.active) return;
             // NOVO: Verifica se a unidade está temporariamente revelada pela IA
             if (unit.isTemporarilyRevealed) {
                 unit.setVisible(true);

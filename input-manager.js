@@ -5,6 +5,7 @@ export const InputMethods = {
 
     setupInput() {
         this.scene.input.topOnly = false;
+        this.scene.input.mouse.disableContextMenu(); // botão direito é usado para atirar
         this.cursors = this.scene.input.keyboard.createCursorKeys();
 
         // Teclado shortcuts
@@ -20,6 +21,9 @@ export const InputMethods = {
         // Tecla 'R' para toggle do alcance visual (opcional, já que o botão sumiu)
         this.scene.input.keyboard.on('keydown-R', () => this.toggleRangeVisual());
 
+
+        // Espaço: atira no alien mais próximo
+        this.scene.input.keyboard.on('keydown-SPACE', () => this.shootAtNearest());
 
         // Tecla 'P': painel de upgrades
         this.scene.input.keyboard.on('keydown-P', () => UIManager.toggleUpgradePanel(this.scene));
@@ -78,6 +82,12 @@ export const InputMethods = {
             // Se clicou em um objeto de UI ou na área da barra, bloqueia interação com o mapa
             if (clickedOnUI || this.isPointerInUIArea(pointer)) {
                 this.shared.isMapInteraction = false;
+                return;
+            }
+            // Botão direito: atira no cursor (não inicia clique/arrasto de mapa)
+            if (pointer.rightButtonDown()) {
+                this.shared.isMapInteraction = false;
+                this.shootAtPointer(pointer);
                 return;
             }
             this.shared.isMapInteraction = true;

@@ -9,6 +9,8 @@ const GAME_CONFIG = {
     SHOOT_OVERLAY_ALPHA: 0.22, // opacidade do overlay fora do alcance (0.0 - 1.0)
     NPC_ATTACK_RANGE: 400, // Agora os Aliens atacam de longe
     NPC_DAMAGE: 5, // Dano base do NPC (antes da redução por armadura)
+    COIN_DROP_VALUE: 10, // Moedas ganhas ao pegar uma moeda dropada
+    BOMB_RADIUS: 350, // Raio da bomba: mata todos os aliens dentro dele
     ARMOR_SCALE: 100, // Redução de dano = armadura / (armadura + ARMOR_SCALE)
     COMMANDER_REGEN_PER_SEC: 2, // Regeneração de vida do comandante por segundo
     NPC_LEASH_RANGE: 650, // Distância do alvo além da qual o NPC desiste sem linha de visão
@@ -52,6 +54,7 @@ const WEAPONS = {
             name: 'Pistola', 
             minDamage: 5, 
             maxDamage: 8, 
+            fireRate: 350, // intervalo mínimo entre tiros do jogador (ms)
             range: 500,
             shootType: 'game_feel', // Corrigido para usar o sistema de projétil com textura
             projectileSpeed: 1100, 
@@ -74,6 +77,7 @@ const WEAPONS = {
             name: 'Escopeta', 
             minDamage: 8, 
             maxDamage: 12, 
+            fireRate: 650,
             range: 550, 
             shootType: 'game_feel_rifle', // Novo tipo de tiro
             projectileSpeed: 1100, 

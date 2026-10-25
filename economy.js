@@ -31,62 +31,67 @@ export const EconomyMethods = {
         }
     },
 
+    // --- INVENTÁRIO COMPARTILHADO: tudo que as unidades pegam vai para o comandante ---
+    /** Cabe no inventário? Armas não se repetem; moeda não ocupa espaço. */
+    canPickUp(itemId) {
+        if (itemId === 'moeda') return true;
+        const inv = this.commander ? this.commander.inventory : null;
+        if (!inv || inv.length >= 4) return false;
+        return !(itemId === 'shotgun' && inv.includes('shotgun'));
+    },
+
+    handleItemPickup(playerId, itemId) {
+        if (!this.commander) return;
+
+        if (itemId === 'moeda') {
+            this.commander.coins += GAME_CONFIG.COIN_DROP_VALUE;
+            this.showFloatingText(this.commander.x, this.commander.y - 60, `+$${GAME_CONFIG.COIN_DROP_VALUE}`, '#ffd700');
+            this.updateUI();
+            return;
+        }
+
+        if (!this.canPickUp(itemId)) return;
+        this.commander.inventory.push(itemId);
+        this.showMessage(`Item: ${itemId}`);
+        this.updateInventoryUI();
+    },
+
     // --- USO DE ITENS ---
     useItem(slotIndex) {
-        if (!this.selectedPlayer) return;
-        
-        const player = this.selectedPlayer;
+        const player = this.commander;
+        if (!player || !player.active || player.health <= 0) return;
         if (slotIndex >= player.inventory.length) return;
 
         const itemId = player.inventory[slotIndex];
 
         if (itemId === 'medkit') {
-            // Verifica se o personagem já está com a vida cheia
             if (player.health >= player.maxHealth) {
                 this.showMessage("Health already full!");
                 return;
             }
-            
-            const healAmount = 20; // Valor solicitado de cura
+
+            const healAmount = 20;
             const oldHealth = player.health;
             const newHealth = Math.min(oldHealth + healAmount, player.maxHealth);
-            
-            // Efeito visual de cura (Texto Verde subindo)
             this.showFloatingText(player.x, player.y - 60, `+${Math.round(newHealth - oldHealth)} HP`, '#00ff00');
-            
-            // Atualiza a vida internamente e o texto sobre a cabeça
             this.updateCharacterHealth(player.id, newHealth);
-            
-            // Som de confirmação
             if (this.soundManager) this.soundManager.play('impact');
 
-            // Remove o item do inventário e atualiza a interface
             player.inventory.splice(slotIndex, 1);
-            this.updateInventoryUI();
-            this.updateUI();
             this.showMessage(`Unit healed! HP: ${player.health}/${player.maxHealth}`);
+        } else if (itemId === 'shotgun') {
+            // A arma fica no inventário: clicar de novo volta para a arma original
+            const baseWeapon = PLAYER_CONFIGS[player.playerType].weapon || 'pistol';
+            player.weapon = player.weapon === 'shotgun' ? baseWeapon : 'shotgun';
+            this.showMessage(`Arma: ${WEAPONS[player.weapon].name}`);
+        } else if (itemId === 'bomb') {
+            player.inventory.splice(slotIndex, 1);
+            this.detonateBomb(player.x, player.y);
         }
 
-    },
-
-    // --- SISTEMA DE INVENTÁRIO ---
-    handleItemPickup(playerId, itemId) {
-        const player = this.getPlayerById(playerId);
-        if (player) {
-            // Se for moeda, não adiciona ao inventário (já foi tratado pelo coin_update)
-            if (itemId === 'moeda') return;
-
-            // Limite de 4 itens no inventário e verifica duplicidade
-            if (player.inventory.length < 4 && !player.inventory.includes(itemId)) {
-                player.inventory.push(itemId);
-                console.log(`[GameManager] Item ${itemId} adicionado ao inventário de ${playerId}. Total: ${player.inventory.length}`);
-                
-                // Se for o jogador selecionado, atualiza a UI imediatamente
-                if (this.selectedPlayer === player) {
-                    this.updateInventoryUI();
-                }
-            }
-        }
+        this.updateInventoryUI();
+        this.updateUI();
+        this.updateStatsPanel();
     },
 
     /**
@@ -108,10 +113,9 @@ export const EconomyMethods = {
 
 
     updateInventoryUI() {
-        const items = this.selectedPlayer ? this.selectedPlayer.inventory : [];
-        console.log(`[GameManager] updateInventoryUI para ${this.selectedPlayer ? this.selectedPlayer.id : 'null'}:`, items);
+        const items = this.commander ? this.commander.inventory : [];
         if (window.UIManager && typeof window.UIManager.updateInventory === 'function') {
-            window.UIManager.updateInventory(items);
+            window.UIManager.updateInventory(items, this.commander ? this.commander.weapon : null);
         }
     },
 };

@@ -360,7 +360,7 @@ class UIManager {
         }
     }
 
-    static updateInventory(items) {
+    static updateInventory(items, equippedWeapon) {
         if (!window.inventorySlots) return;
         
         console.log('[UIManager] Atualizando inventário:', items);
@@ -395,7 +395,9 @@ class UIManager {
                 }
                 
                 slotObj.icon.setVisible(true);
-                slotObj.slot.setStrokeStyle(1, 0xffffff); // Realça slot ocupado
+                // Realça slot ocupado; verde quando é a arma em uso
+                const isEquipped = itemId === equippedWeapon;
+                slotObj.slot.setStrokeStyle(isEquipped ? 2 : 1, isEquipped ? 0x00ff00 : 0xffffff);
             } else {
                 slotObj.icon.setVisible(false);
                 slotObj.slot.setStrokeStyle(1, 0x555555); // Slot vazio escuro

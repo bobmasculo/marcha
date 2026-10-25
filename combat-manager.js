@@ -167,6 +167,13 @@ export const CombatMethods = {
         const weaponKey = shooter.weapon || 'pistol';
         const weaponConfig = WEAPONS[weaponKey] || WEAPONS['pistol'];
 
+        // Cadência de tiro do jogador (os soldados já têm o próprio intervalo de autofire)
+        if (shooter === this.selectedPlayer) {
+            const now = this.scene.time.now;
+            if (now - (shooter._lastShotTime || 0) < weaponConfig.fireRate) return;
+            shooter._lastShotTime = now;
+        }
+
         const dist = Phaser.Math.Distance.Between(shooter.x, shooter.y, targetX, targetY);
         if (dist > weaponConfig.range * (1 + this.getUpgradeBonus('range'))) {
             this.showMessage('Target too far!');
@@ -205,6 +212,56 @@ export const CombatMethods = {
             this.setActionMode(null);
             this.removeShootVisuals();
         }
+    },
+
+    /** Botão direito: o comandante atira no ponto do cursor (ou no alien que estiver ali). */
+    shootAtPointer(pointer) {
+        if (!this.selectedPlayer || this.isGameOver) return;
+        const npc = this.getNpcAt(pointer.worldX, pointer.worldY);
+        if (npc) this.executeShoot(npc.x, npc.y, npc);
+        else this.executeShoot(pointer.worldX, pointer.worldY);
+    },
+
+    /** Espaço: atira no alien visível mais próximo, dentro do alcance e com linha de visão. */
+    shootAtNearest() {
+        const shooter = this.selectedPlayer;
+        if (!shooter || this.isGameOver) return;
+        const weapon = WEAPONS[shooter.weapon] || WEAPONS['pistol'];
+        const range = weapon.range * (1 + this.getUpgradeBonus('range'));
+        let nearest = null;
+        let minDist = range;
+        this.scene.npcManager.npcs.getChildren().forEach(npc => {
+            if (!npc.active || !npc.visible || npc.health <= 0) return;
+            const d = Phaser.Math.Distance.Between(shooter.x, shooter.y, npc.x, npc.y);
+            if (d <= minDist && this.scene.meuCenario.checkLineOfSight(shooter.x, shooter.y, npc.x, npc.y)) {
+                minDist = d;
+                nearest = npc;
+            }
+        });
+        if (nearest) this.executeShoot(nearest.x, nearest.y, nearest);
+        else this.showMessage('Nenhum alien ao alcance');
+    },
+
+    /** Bomba: mata todos os aliens dentro de BOMB_RADIUS ao redor de (x, y). */
+    detonateBomb(x, y) {
+        const radius = GAME_CONFIG.BOMB_RADIUS;
+
+        // Onda de choque + clarão + tremor de câmera
+        const wave = this.scene.add.circle(x, y, 20, 0xff8800, 0.5).setStrokeStyle(4, 0xffee88).setDepth(3000);
+        this.scene.tweens.add({
+            targets: wave, radius: radius, alpha: 0, duration: 600, ease: 'Quad.out',
+            onComplete: () => wave.destroy()
+        });
+        this.scene.shotManager.createExplosionEffect(x, y);
+        this.scene.cameras.main.shake(400, 0.01);
+        if (this.soundManager) this.soundManager.play('shoot');
+
+        // Percorre uma cópia: matar um alien pode soltar drops e mexer na lista
+        const victims = this.scene.npcManager.npcs.getChildren().filter(npc =>
+            npc.active && npc.health > 0 && Phaser.Math.Distance.Between(x, y, npc.x, npc.y) <= radius
+        );
+        victims.forEach(npc => this.handleNpcDamage({ npcId: npc.getData('id'), damage: npc.health }));
+        this.showMessage(`BOOM! ${victims.length} aliens eliminados`);
     },
 
     /**
@@ -447,9 +504,9 @@ export const CombatMethods = {
                 
                 // Lógica de Drop Offline
                 if (Math.random() < 0.9) { // Aumentado para 90% de chance de drop total
-                    // Novos Pesos: Moeda(20%), Shotgun(20%), Medkit(20%), Nuclear Bomb(25%), Bomb(15%)
+                    // Pesos: Moeda, Shotgun, Medkit e Bomba, 25% cada
                     const rand = Math.random();
-                    let itemId = rand < 0.20 ? 'moeda' : (rand < 0.40 ? 'shotgun' : (rand < 0.60 ? 'medkit' : (rand < 0.85 ? 'nuclear_bomb' : 'bomb')));
+                    const itemId = rand < 0.25 ? 'moeda' : (rand < 0.50 ? 'shotgun' : (rand < 0.75 ? 'medkit' : 'bomb'));
                     
                     const drop = {
                         id: `drop_${Date.now()}_${Math.floor(Math.random()*1000)}`,
