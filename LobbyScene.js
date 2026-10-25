@@ -1,8 +1,129 @@
-import { getMission } from './progression.js';
+import { MISSIONS, getMission } from './progression.js';
+
+// Paleta do lobby
+const COLOR = {
+    bgTop: 0x03050f,
+    bgBottom: 0x0b2146,
+    accent: 0x00e5ff,
+    accentCss: '#00e5ff',
+    neon: '#ff2fd6',
+    panel: 0x08162f,
+    go: 0x12b34a,
+    goHover: 0x1ee061
+};
+
+const FONT = 'Arial, sans-serif';
+const FONT_TITLE = '"Arial Black", Arial, sans-serif';
+
+const CREDITS_TEXT = [
+    "Music: Lines of Code",
+    "Author: Trevor Lentz",
+    "License: CC-BY 3.0",
+    "URL: https://opengameart.org/content/lines-of-code",
+    "--------------------------------------------------",
+    "SFX: RPG Sound Pack (Shoot/Hit/Impact)",
+    "Author: leohpaz",
+    "License: CC-BY 4.0",
+    "URL: https://opengameart.org/content/rpg-sound-pack",
+    "--------------------------------------------------",
+    "LPC Shadow",
+    "Author: Dr. Jamgo",
+    "License: CC0 (Public Domain)",
+    "URL: https://opengameart.org/content/shadow-for-lpc-sprite",
+    "--------------------------------------------------",
+    "LPC Human Body, Head, Eyes & Ears",
+    "Authors: Stephen Challener (Redshrike), Johannes Sjölund (wulax),",
+    "Matthew Krohn (makrohn), pflat",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URLs: https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+    "--------------------------------------------------",
+    "LPC Pants and Formal Shirts",
+    "Authors: bluecarrot16, JaidynReiman, Joe White,",
+    "Matthew Krohn (makrohn), Johannes Sjölund (wulax),",
+    "Thane Brimhall (pennomi), laetissima, pflat",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URLs: https://opengameart.org/content/lpc-gentleman",
+    "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+    "--------------------------------------------------",
+    "LPC Long Boots (shoes)",
+    "Authors: bluecarrot16, Nila122",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URL: https://opengameart.org/content/lpc-clothes-and-hair",
+    "--------------------------------------------------",
+    "LPC Nose and Expressions",
+    "Authors: Thane Brimhall (pennomi), Matthew Krohn (makrohn),",
+    "Stephen Challener (Redshrike), Johannes Sjölund (wulax)",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URL: https://opengameart.org/content/lpc-base-character-expressions",
+    "--------------------------------------------------",
+    "LPC Crossbow & Bolts",
+    "Authors: Dr. Jamgo, pflat, Michael Whitlock (bigbeargames),",
+    "Matthew Krohn (makrohn), Johannes Sjölund (wulax),",
+    "Benjamin K. Smith (BenCreating), Sander Frenken (castelonia),",
+    "Nila122, Eliza Wyatt (ElizaWy), Joe White",
+    "License: CC0 & CC-BY-SA 3.0",
+    "URL: https://opengameart.org/content/lpc-crossbow-final",
+    "--------------------------------------------------",
+    "'Thick' Male Revised Run/Climb",
+    "Author: JaidynReiman (based on ElizaWy's LPC Revised)",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URL: https://opengameart.org/content/thick-male-revised-runclimb",
+    "--------------------------------------------------",
+    "Tree Variations (Jetrel's Wood Tileset)",
+    "Author: Bertram",
+    "License: CC-BY 3.0 / GPL 2.0",
+    "URL: https://opengameart.org/content/tree-variations-from-jetrels-wood-tileset",
+    "--------------------------------------------------",
+    "Lasers and Beams",
+    "Author: Rawdanitsu",
+    "License: CC-BY 3.0",
+    "URL: https://opengameart.org/content/lasers-and-beams",
+    "--------------------------------------------------",
+    "LPC Plant Repack",
+    "Author: William.Thompsonj",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URL: https://opengameart.org/content/lpc-plant-repack",
+    "--------------------------------------------------",
+    "Happyland Tileset",
+    "Author: Buch",
+    "License: CC0 (Public Domain)",
+    "URL: https://opengameart.org/content/happyland-tileset",
+    "--------------------------------------------------",
+    "LPC Sci-Fi Sprite Pack",
+    "Authors: Skorpios, Casper Nilsson, Nila122, bluecarrot16",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URL: https://opengameart.org/content/lpc-skorpios-scifi-sprite-pack",
+    "--------------------------------------------------",
+    "LPC Misc Tile Atlas (Trees, Furniture, Bridges)",
+    "Authors: Lanea Zimmerman (Sharm), Stephen Challener (Redshrike),",
+    "Charles Gabriel, Manuel Teira, bluecarrot16",
+    "License: CC-BY-SA 3.0 / GPL 3.0",
+    "URL: https://opengameart.org/content/lpc-misc-tile-atlas-interior-exterior-trees-bridges-furniture",
+    "--------------------------------------------------",
+    "Item icons (medkit, grenade, adrenaline)",
+    "Author: War UFO team (original pixel art)",
+    "License: CC0 (Public Domain)",
+    "--------------------------------------------------",
+    "Total Asset Licenses: CC0, CC-BY 3.0, CC-BY 4.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0",
+    "",
+    "Thank you to the OpenGameArt community!"
+];
+
+const GUIDE_LINES = [
+    'Clique esquerdo: mover / atirar no alien',
+    'Botão direito ou Espaço: atirar',
+    'Setas ou arrastar: câmera    + / -: zoom',
+    '1 a 4: usar itens    P: upgrades',
+    'Minere, recrute e cumpra o objetivo'
+];
+
+const LORE = '"Em um futuro superaquecido, aliens, capitalistas e comunistas lutam para manter o mundo numa primavera eterna."';
 
 /**
  * @class LobbyScene
- * @description Gerencia a interface e a lógica da sala de espera do jogo.
+ * @description Tela inicial: escolha da missão e início do jogo.
+ * Layout em coluna única centrada: título, citação, cartão da missão, botão de iniciar.
+ * Guia de controles no canto inferior esquerdo e créditos no direito.
  */
 export default class LobbyScene extends Phaser.Scene {
     constructor() {
@@ -11,163 +132,253 @@ export default class LobbyScene extends Phaser.Scene {
 
     init(data) {
         this.currentMission = data && data.missionNumber ? data.missionNumber : 1;
+        this.starting = false;
     }
 
     preload() {
-        // Carregar assets para o lobby embelezado
+        // Colagem com o mapa-múndi; só o recorte do mapa é usado no cartão da missão
         this.load.image('ufo', 'assets/cidade/map.png');
     }
 
     create() {
-        console.log("Initializing Offline Lobby...");
+        this.W = this.scale.width;
+        this.H = this.scale.height;
+        this.cx = this.W / 2;
 
-        // --- IMAGEM DE FUNDO ---
-        const bg = this.add.image(0, 0, 'ufo').setOrigin(0, 0).setDepth(-1);
+        this.createBackground();
+        this.createTitle();
+        this.createMissionCard();
+        this.createStartButton();
+        this.createGuide();
+        this.createCreditsButton();
 
-        const resizeBackground = () => {
-            bg.displayWidth = this.scale.width;
-            bg.displayHeight = this.scale.height;
-        };
-
-        resizeBackground();
-        this.scale.on('resize', resizeBackground, this);
-
-        // Adicionar estrelas animadas no fundo
-        this.createStarfield();
-
-        // --- CABEÇALHO COM BRANDING ---
-        // Container principal para o header
-        const headerContainer = this.add.container(this.cameras.main.width / 2, 80);
-
-        // Nome do jogo com estilo futurista
-        const gameTitle = this.add.text(0, 0, 'WAR UFO', {
-            fontSize: '44px',
-            fill: 'rgb(27, 45, 45)',
-            fontFamily: 'Arial Black, sans-serif',
-            stroke: '#ff00ff',
-            strokeThickness: 3,
-            shadow: {
-                offsetX: 3,
-                offsetY: 3,
-                color: '#ff00ff',
-                blur: 8,
-                stroke: true,
-                fill: true
-            }
+        this.add.text(this.cx, this.H - 14, 'Bob Games', {
+            fontSize: '12px', fill: '#5d7a99', fontFamily: FONT
         }).setOrigin(0.5);
 
-        // Logo da Bob Games (se a imagem existir)
-        let bobLogo = null;
-        try {
-            // bobLogo = this.add.image(0, 50, 'bob-logo');
-            // bobLogo.setScale(0.3);
-            // bobLogo.setOrigin(0.5);
-        } catch (e) {
-            // Se não encontrar a imagem, usa texto
-            const companyText = this.add.text(0, 50, 'Bob Games', {
-                fontSize: '24px',
-                fill: '#ffaa00',
-                fontFamily: 'Arial, sans-serif',
-                stroke: '#000000',
-                strokeThickness: 2
-            }).setOrigin(0.5);
-            headerContainer.add(companyText);
+        this.renderMission();
+        this.setupKeys();
+    }
+
+    update(time, delta) {
+        // Estrelas à deriva, devagar, voltando pela esquerda
+        const dx = delta / 1000;
+        this.stars.forEach(star => {
+            star.obj.x -= star.speed * dx;
+            if (star.obj.x < -4) star.obj.x = this.W + 4;
+        });
+    }
+
+    // ------------------------------------------------------------------ fundo
+    createBackground() {
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(COLOR.bgTop, COLOR.bgTop, COLOR.bgBottom, COLOR.bgBottom, 1);
+        bg.fillRect(0, 0, this.W, this.H);
+
+        // Planeta no horizonte, só a calota de cima aparece
+        const planet = this.add.graphics();
+        planet.fillStyle(0x0b3a6b, 0.35);
+        planet.fillCircle(this.cx, this.H + 520, 760);
+        planet.lineStyle(3, COLOR.accent, 0.35);
+        planet.strokeCircle(this.cx, this.H + 520, 760);
+
+        this.stars = [];
+        for (let i = 0; i < 120; i++) {
+            const size = Phaser.Math.FloatBetween(0.5, 1.8);
+            const obj = this.add.circle(
+                Phaser.Math.Between(0, this.W), Phaser.Math.Between(0, this.H),
+                size, 0xffffff, Phaser.Math.FloatBetween(0.3, 1)
+            );
+            this.stars.push({ obj, speed: size * 4 });
+            this.tweens.add({
+                targets: obj, alpha: 0.15, duration: Phaser.Math.Between(1200, 3200),
+                ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 2000)
+            });
         }
+    }
 
-        // Subtítulo do lobby
-        const lobbySubtitle = this.add.text(0, 100, 'Alpha 0.35 · build 25-10', {
-            fontSize: '28px',
-            fill: '#ffffff',
-            fontFamily: 'Arial, sans-serif',
-            stroke: '#00ffff',
-            strokeThickness: 1
+    // ----------------------------------------------------------------- título
+    createTitle() {
+        const title = this.add.text(this.cx, 96, 'WAR UFO', {
+            fontSize: '76px', fontFamily: FONT_TITLE, fill: '#e8fbff',
+            stroke: COLOR.neon, strokeThickness: 6,
+            padding: { x: 24, y: 16 }, // folga para o brilho não ser cortado
+            shadow: { offsetX: 0, offsetY: 0, color: COLOR.neon, blur: 18, stroke: true, fill: true }
         }).setOrigin(0.5);
 
-        // INDICADOR DE MISSÃO ATUAL
-        const missionText = this.add.text(0, 150, `MISSION ${this.currentMission}: ${getMission(this.currentMission).name.toUpperCase()}`, {
-            fontSize: '22px',
-            fill: '#00ff00',
-            fontFamily: 'Arial, sans-serif',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 2
-        }).setOrigin(0.5);
-
-        // Frase de lore/contexto do jogo (Posicionada fora do container para ficar estática)
-        const loreText = this.add.text(this.cameras.main.width / 2, 245, '"In an overheated future, aliens, capitalists, and communists are fighting to keep the world in an eternal spring."', {
-            fontSize: '18px',
-            fill: '#ffffff',
-            fontFamily: 'Arial, sans-serif',
-            fontStyle: 'italic',
-            stroke: '#000000',
-            strokeThickness: 2,
-            align: 'center',
-            wordWrap: { width: 550 }
-        }).setOrigin(0.5);
-
-        headerContainer.add([gameTitle, lobbySubtitle, missionText]);
-        if (bobLogo) headerContainer.add(bobLogo);
-
-        // Animação de flutuação para o header
+        // Flutua pouco: 6 px para cada lado
         this.tweens.add({
-            targets: headerContainer,
-            y: 400,
-            duration: 2000,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
+            targets: title, y: title.y + 6, duration: 2400,
+            ease: 'Sine.easeInOut', yoyo: true, repeat: -1
         });
 
-        // --- SELEÇÃO DE TIME ---
-        const centerX = this.cameras.main.width / 2;
-        const startY = this.cameras.main.height / 2;
+        this.add.text(this.cx, 156, 'RTS  ·  ALPHA 0.35  ·  BUILD 25-10', {
+            fontSize: '15px', fontFamily: FONT, fill: COLOR.accentCss
+        }).setOrigin(0.5).setAlpha(0.85);
 
-        // Botão Único de START para RTS
-        const btnStart = this.add.container(centerX, startY + 200);
-        const bgStart = this.add.rectangle(0, 0, 300, 70, 0x00cc00).setStrokeStyle(3, 0xffffff);
-        const txtStart = this.add.text(0, 0, 'START MISSION', { fontSize: '28px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-        btnStart.add([bgStart, txtStart]);
+        this.add.text(this.cx, 204, LORE, {
+            fontSize: '15px', fontFamily: FONT, fontStyle: 'italic', fill: '#b9c8da',
+            align: 'center', wordWrap: { width: 640 }
+        }).setOrigin(0.5);
+    }
 
-        btnStart.setSize(300, 70).setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => {
-                if (GAME_CONFIG.START_FULLSCREEN && !this.scale.isFullscreen) {
-                    this.scale.startFullscreen();
-                }
-                this.scene.start('GameScene', { offline: true, team: 'blue', missionNumber: this.currentMission });
-            })
-            .on('pointerover', () => bgStart.setFillStyle(0x00ff00))
-            .on('pointerout', () => bgStart.setFillStyle(0x00cc00));
+    // ------------------------------------------------------------- cartão da missão
+    createMissionCard() {
+        const w = 560;
+        const h = 250;
+        const y = 410;
+        this.card = { w, h, y };
 
-        // --- BOTÃO DE CRÉDITOS ---
-        const btnCredits = this.add.container(centerX, this.cameras.main.height - 60);
-        const bgCredits = this.add.rectangle(0, 0, 180, 40, 0x333333, 0.8).setStrokeStyle(1, 0xaaaaaa);
-        const txtCredits = this.add.text(0, 0, '📜 CREDITS', { fontSize: '16px', fill: '#ffffff' }).setOrigin(0.5);
-        btnCredits.add([bgCredits, txtCredits]);
+        // Recorte do mapa-múndi dentro da colagem map.png, escurecido para dar leitura ao texto
+        const tex = this.textures.get('ufo');
+        if (!tex.has('mapa')) tex.add('mapa', 0, 416, 229, 416, 192);
+        this.add.image(this.cx, y, 'ufo', 'mapa').setDisplaySize(w, h).setAlpha(0.35);
 
-        btnCredits.setSize(180, 40).setInteractive({ useHandCursor: true })
+        const panel = this.add.graphics();
+        panel.fillStyle(COLOR.panel, 0.7);
+        panel.fillRect(this.cx - w / 2, y - h / 2, w, h);
+        panel.lineStyle(2, COLOR.accent, 0.8);
+        panel.strokeRect(this.cx - w / 2, y - h / 2, w, h);
+
+        this.missionLabel = this.add.text(this.cx, y - 98, '', {
+            fontSize: '14px', fontFamily: FONT, fontStyle: 'bold', fill: COLOR.accentCss
+        }).setOrigin(0.5);
+
+        this.missionName = this.add.text(this.cx, y - 62, '', {
+            fontSize: '34px', fontFamily: FONT_TITLE, fill: '#ffffff',
+            stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+
+        this.missionBriefing = this.add.text(this.cx, y - 18, '', {
+            fontSize: '16px', fontFamily: FONT, fontStyle: 'italic', fill: '#dfe9f5',
+            align: 'center', wordWrap: { width: w - 120 }
+        }).setOrigin(0.5);
+
+        const divider = this.add.graphics();
+        divider.lineStyle(1, COLOR.accent, 0.4);
+        divider.lineBetween(this.cx - 200, y + 24, this.cx + 200, y + 24);
+
+        this.missionObjective = this.add.text(this.cx, y + 52, '', {
+            fontSize: '17px', fontFamily: FONT, fontStyle: 'bold', fill: '#58f08a'
+        }).setOrigin(0.5);
+
+        this.missionDetails = this.add.text(this.cx, y + 86, '', {
+            fontSize: '13px', fontFamily: FONT, fill: '#9fb3c8'
+        }).setOrigin(0.5);
+
+        // Setas para escolher a missão (também com as teclas esquerda e direita)
+        this.arrowPrev = this.createArrow(this.cx - w / 2 - 36, y, '◀', -1);
+        this.arrowNext = this.createArrow(this.cx + w / 2 + 36, y, '▶', 1);
+    }
+
+    createArrow(x, y, symbol, step) {
+        const arrow = this.add.text(x, y, symbol, {
+            fontSize: '34px', fontFamily: FONT, fill: COLOR.accentCss
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        arrow.on('pointerover', () => arrow.setScale(1.2));
+        arrow.on('pointerout', () => arrow.setScale(1));
+        arrow.on('pointerdown', () => this.changeMission(step));
+        return arrow;
+    }
+
+    changeMission(step) {
+        const next = Phaser.Math.Clamp(this.currentMission + step, 1, MISSIONS.length);
+        if (next === this.currentMission) return;
+        this.currentMission = next;
+        this.renderMission();
+    }
+
+    objectiveText(objective) {
+        if (objective.type === 'eliminate') return `Objetivo: eliminar ${objective.goal} aliens`;
+        if (objective.type === 'mine') return `Objetivo: minerar $${objective.goal}`;
+        return 'Objetivo: transmitir a mensagem até 100%';
+    }
+
+    /** Preenche o cartão com a missão escolhida e liga/desliga as setas nas pontas. */
+    renderMission() {
+        const mission = getMission(this.currentMission);
+        this.missionLabel.setText(`MISSÃO ${this.currentMission} DE ${MISSIONS.length}`);
+        this.missionName.setText(mission.name.toUpperCase());
+        this.missionBriefing.setText(mission.briefing);
+        this.missionObjective.setText(this.objectiveText(mission.objective));
+        this.missionDetails.setText(`Aliens: ${mission.npcCount}   ·   Minério: ${mission.ores}   ·   Moedas iniciais: $${mission.startCoins}`);
+        this.arrowPrev.setAlpha(this.currentMission > 1 ? 1 : 0.2);
+        this.arrowNext.setAlpha(this.currentMission < MISSIONS.length ? 1 : 0.2);
+    }
+
+    // ------------------------------------------------------------------ iniciar
+    createStartButton() {
+        const btn = this.add.container(this.cx, 590);
+        const bg = this.add.rectangle(0, 0, 320, 64, COLOR.go).setStrokeStyle(3, 0xffffff);
+        const label = this.add.text(0, 0, 'INICIAR MISSÃO', {
+            fontSize: '26px', fontFamily: FONT_TITLE, fill: '#ffffff'
+        }).setOrigin(0.5);
+        btn.add([bg, label]);
+        btn.setSize(320, 64).setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.startGame())
+            .on('pointerover', () => bg.setFillStyle(COLOR.goHover))
+            .on('pointerout', () => bg.setFillStyle(COLOR.go));
+
+        this.tweens.add({
+            targets: btn, scale: 1.03, duration: 900,
+            ease: 'Sine.easeInOut', yoyo: true, repeat: -1
+        });
+
+        this.add.text(this.cx, 640, 'ou pressione ENTER', {
+            fontSize: '12px', fontFamily: FONT, fill: '#7f95ad'
+        }).setOrigin(0.5);
+    }
+
+    startGame() {
+        if (this.starting) return;
+        this.starting = true;
+        if (GAME_CONFIG.START_FULLSCREEN && !this.scale.isFullscreen) {
+            this.scale.startFullscreen();
+        }
+        this.scene.start('GameScene', { offline: true, team: 'blue', missionNumber: this.currentMission });
+    }
+
+    setupKeys() {
+        const kb = this.input.keyboard;
+        kb.on('keydown-ENTER', () => this.startGame());
+        kb.on('keydown-LEFT', () => this.changeMission(-1));
+        kb.on('keydown-RIGHT', () => this.changeMission(1));
+    }
+
+    // ------------------------------------------------------------ guia e créditos
+    createGuide() {
+        const x = 24;
+        const w = 360;
+        const h = 146;
+        const y = this.H - h - 28;
+
+        const panel = this.add.graphics();
+        panel.fillStyle(0x000000, 0.55);
+        panel.fillRect(x, y, w, h);
+        panel.lineStyle(1, COLOR.accent, 0.5);
+        panel.strokeRect(x, y, w, h);
+
+        this.add.text(x + 16, y + 12, 'COMO JOGAR', {
+            fontSize: '14px', fontFamily: FONT, fontStyle: 'bold', fill: COLOR.accentCss
+        });
+        this.add.text(x + 16, y + 38, GUIDE_LINES.map(line => `•  ${line}`).join('\n'), {
+            fontSize: '13px', fontFamily: FONT, fill: '#ffffff', lineSpacing: 7
+        });
+    }
+
+    createCreditsButton() {
+        const w = 150;
+        const h = 40;
+        const btn = this.add.container(this.W - 24 - w / 2, this.H - 28 - h / 2);
+        const bg = this.add.rectangle(0, 0, w, h, 0x1c2a3d, 0.9).setStrokeStyle(1, 0x8aa0b8);
+        const label = this.add.text(0, 0, 'CRÉDITOS', {
+            fontSize: '15px', fontFamily: FONT, fill: '#ffffff'
+        }).setOrigin(0.5);
+        btn.add([bg, label]);
+        btn.setSize(w, h).setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.showCredits())
-            .on('pointerover', () => bgCredits.setStrokeStyle(2, 0xffff00))
-            .on('pointerout', () => bgCredits.setStrokeStyle(1, 0xaaaaaa));
-
-        // --- QUICK INSTRUCTIONS (Bottom Left) ---
-        const instrContainer = this.add.container(20, this.cameras.main.height - 150);
-        const instrBg = this.add.rectangle(0, 0, 320, 130, 0x000000, 0.6)
-            .setOrigin(0)
-            .setStrokeStyle(1, 0x00ffff, 0.5);
-
-        const instrTitle = this.add.text(15, 12, "COMMANDER'S GUIDE", {
-            fontSize: '16px', fill: '#00ffff', fontStyle: 'bold', fontFamily: 'Arial'
-        });
-
-        const instrBody = this.add.text(15, 40,
-            "• Inspired by the 1992 UFO classic\n" +
-            "• ARROWS: Navigate the battlefield\n" +
-            "• UI BUTTONS: Toggle Move/Shoot modes\n" +
-            "• LEFT CLICK: Select and execute actions",
-            { fontSize: '13px', fill: '#ffffff', lineSpacing: 6, fontFamily: 'Arial' }
-        );
-
-        instrContainer.add([instrBg, instrTitle, instrBody]);
+            .on('pointerover', () => bg.setStrokeStyle(2, 0xffff00))
+            .on('pointerout', () => bg.setStrokeStyle(1, 0x8aa0b8));
     }
 
     /**
@@ -179,109 +390,19 @@ export default class LobbyScene extends Phaser.Scene {
 
         // Overlay escuro para foco
         const overlay = this.add.rectangle(centerX, centerY, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.8)
-            .setInteractive(); // Bloqueia cliques no fundo
+            .setInteractive().setDepth(100); // Bloqueia cliques no fundo
 
-        const panel = this.add.container(centerX, centerY);
+        const panel = this.add.container(centerX, centerY).setDepth(101);
         const panelWidth = 700;
         const panelHeight = 500;
         const bg = this.add.rectangle(0, 0, panelWidth, panelHeight, 0x111111).setStrokeStyle(3, 0x00ffff);
 
-        const title = this.add.text(0, -panelHeight / 2 + 35, 'GAME ASSETS CREDITS', {
+        const title = this.add.text(0, -panelHeight / 2 + 35, 'CRÉDITOS DOS ASSETS', {
             fontSize: '24px', fill: '#00ffff', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        const creditsText = [
-            "Music: Lines of Code",
-            "Author: Trevor Lentz",
-            "License: CC-BY 3.0",
-            "URL: https://opengameart.org/content/lines-of-code",
-            "--------------------------------------------------",
-            "SFX: RPG Sound Pack (Shoot/Hit/Impact)",
-            "Author: leohpaz",
-            "License: CC-BY 4.0",
-            "URL: https://opengameart.org/content/rpg-sound-pack",
-            "--------------------------------------------------",
-            "LPC Shadow",
-            "Author: Dr. Jamgo",
-            "License: CC0 (Public Domain)",
-            "URL: https://opengameart.org/content/shadow-for-lpc-sprite",
-            "--------------------------------------------------",
-            "LPC Human Body, Head, Eyes & Ears",
-            "Authors: Stephen Challener (Redshrike), Johannes Sjölund (wulax),",
-            "Matthew Krohn (makrohn), pflat",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URLs: https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
-            "--------------------------------------------------",
-            "LPC Pants and Formal Shirts",
-            "Authors: bluecarrot16, JaidynReiman, Joe White,",
-            "Matthew Krohn (makrohn), Johannes Sjölund (wulax),",
-            "Thane Brimhall (pennomi), laetissima, pflat",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URLs: https://opengameart.org/content/lpc-gentleman",
-            "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
-            "--------------------------------------------------",
-            "LPC Long Boots (shoes)",
-            "Authors: bluecarrot16, Nila122",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URL: https://opengameart.org/content/lpc-clothes-and-hair",
-            "--------------------------------------------------",
-            "LPC Nose and Expressions",
-            "Authors: Thane Brimhall (pennomi), Matthew Krohn (makrohn),",
-            "Stephen Challener (Redshrike), Johannes Sjölund (wulax)",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URL: https://opengameart.org/content/lpc-base-character-expressions",
-            "--------------------------------------------------",
-            "LPC Crossbow & Bolts",
-            "Authors: Dr. Jamgo, pflat, Michael Whitlock (bigbeargames),",
-            "Matthew Krohn (makrohn), Johannes Sjölund (wulax),",
-            "Benjamin K. Smith (BenCreating), Sander Frenken (castelonia),",
-            "Nila122, Eliza Wyatt (ElizaWy), Joe White",
-            "License: CC0 & CC-BY-SA 3.0",
-            "URL: https://opengameart.org/content/lpc-crossbow-final",
-            "--------------------------------------------------",
-            "'Thick' Male Revised Run/Climb",
-            "Author: JaidynReiman (based on ElizaWy's LPC Revised)",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URL: https://opengameart.org/content/thick-male-revised-runclimb",
-            "--------------------------------------------------",
-            "Tree Variations (Jetrel's Wood Tileset)",
-            "Author: Bertram",
-            "License: CC-BY 3.0 / GPL 2.0",
-            "URL: https://opengameart.org/content/tree-variations-from-jetrels-wood-tileset",
-            "--------------------------------------------------",
-            "Lasers and Beams",
-            "Author: Rawdanitsu",
-            "License: CC-BY 3.0",
-            "URL: https://opengameart.org/content/lasers-and-beams",
-            "--------------------------------------------------",
-            "LPC Plant Repack",
-            "Author: William.Thompsonj",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URL: https://opengameart.org/content/lpc-plant-repack",
-            "--------------------------------------------------",
-            "Happyland Tileset",
-            "Author: Buch",
-            "License: CC0 (Public Domain)",
-            "URL: https://opengameart.org/content/happyland-tileset",
-            "--------------------------------------------------",
-            "LPC Sci-Fi Sprite Pack",
-            "Authors: Skorpios, Casper Nilsson, Nila122, bluecarrot16",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URL: https://opengameart.org/content/lpc-skorpios-scifi-sprite-pack",
-            "--------------------------------------------------",
-            "LPC Misc Tile Atlas (Trees, Furniture, Bridges)",
-            "Authors: Lanea Zimmerman (Sharm), Stephen Challener (Redshrike),",
-            "Charles Gabriel, Manuel Teira, bluecarrot16",
-            "License: CC-BY-SA 3.0 / GPL 3.0",
-            "URL: https://opengameart.org/content/lpc-misc-tile-atlas-interior-exterior-trees-bridges-furniture",
-            "--------------------------------------------------",
-            "Total Asset Licenses: CC0, CC-BY 3.0, CC-BY 4.0, CC-BY-SA 3.0, GPL 2.0, GPL 3.0",
-            "",
-            "Thank you to the OpenGameArt community!"
-        ];
-
         const topLimit = -panelHeight / 2 + 80;
-        const content = this.add.text(0, topLimit, creditsText.join('\n'), {
+        const content = this.add.text(0, topLimit, CREDITS_TEXT.join('\n'), {
             fontSize: '14px',
             fill: '#cccccc',
             align: 'center',
@@ -367,7 +488,7 @@ export default class LobbyScene extends Phaser.Scene {
         // Botão Fechar
         const closeBtn = this.add.container(0, panelHeight / 2 - 40);
         const closeBg = this.add.rectangle(0, 0, 120, 35, 0xcc0000).setStrokeStyle(1, 0xffffff);
-        const closeTxt = this.add.text(0, 0, 'CLOSE', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+        const closeTxt = this.add.text(0, 0, 'FECHAR', { fontSize: '16px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
         closeBtn.add([closeBg, closeTxt]);
 
         closeBtn.setSize(120, 35).setInteractive({ useHandCursor: true })
@@ -392,36 +513,5 @@ export default class LobbyScene extends Phaser.Scene {
             duration: 300,
             ease: 'Back.easeOut'
         });
-    }
-
-    /**
-     * Cria um campo de estrelas animadas no fundo para dar atmosfera espacial
-     */
-    createStarfield() {
-        const stars = [];
-        const numStars = 100;
-
-        for (let i = 0; i < numStars; i++) {
-            const x = Phaser.Math.Between(0, this.cameras.main.width);
-            const y = Phaser.Math.Between(0, this.cameras.main.height);
-            const size = Phaser.Math.FloatBetween(0.5, 2);
-            const brightness = Phaser.Math.FloatBetween(0.3, 1);
-
-            const star = this.add.circle(x, y, size, 0xffffff, brightness);
-            stars.push(star);
-
-            // Animação de pulsar para cada estrela
-            this.tweens.add({
-                targets: star,
-                alpha: 0.2,
-                duration: Phaser.Math.Between(1000, 3000),
-                ease: 'Sine.easeInOut',
-                yoyo: true,
-                repeat: -1,
-                delay: Phaser.Math.Between(0, 2000)
-            });
-        }
-
-        return stars;
     }
 }
