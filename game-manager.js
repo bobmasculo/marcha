@@ -1,12 +1,10 @@
 // game-manager.js
 export default class GameManager {
-    constructor(scene, animManager, netManager, soundManager) {
+    constructor(scene, animManager, soundManager) {
         this.scene = scene;
         this.players = scene.physics.add.group();
         this.animationManager = animManager; // Armazena a referência
-        this.networkManager = null; // OFFLINE ONLY
         this.soundManager = soundManager; // Armazena a referência do som
-        this.isOffline = true; // Flag offline sempre true
         this.currentMissionNumber = 1; // Default para missão 1
         this.commander = null;
         this.selectedPlayer = null; 
@@ -287,7 +285,6 @@ export default class GameManager {
         });
 
         this.animationManager.createPlayerAnimations(player);
-        this.updateConnectedPlayersText();
         return player;
     }
 
@@ -305,11 +302,6 @@ export default class GameManager {
         graphics.fillStyle(color, 1);
         graphics.fillRect(-width / 2 + 1, -height / 2 + 1, Math.max(0, (width - 2) * percentage), height - 2);
     }
-
-    setLocalPlayerId(id) {
-        // Esta função não é mais necessária
-    }
-
     // --- MODO OFFLINE: SETUP E LÓGICA ---
     setupOfflineGame(missionNumber = 1) {
         console.log('[GameManager] Configurando jogo OFFLINE...');
@@ -529,11 +521,6 @@ export default class GameManager {
             this.selectPlayer(nextPlayer);
         }
     }
-
-    getFirstPlayerOfTeam(team) {
-        return this.players.getChildren().find(p => p.team === team);
-    }
-
     createHighlightBox(player) {
         const config = PLAYER_CONFIGS[player.playerType];
         if (!config) {
@@ -689,11 +676,8 @@ export default class GameManager {
                 }
 
                 player.path = limitedPath;
-                player._pendingPath = limitedPath; 
             player._lastDistToTarget = Infinity; // Reinicia rastreador de progresso
             player._stuckFrames = 0;
-                // Calcula o ângulo alvo para o primeiro waypoint
-                player.targetRotation = Phaser.Math.Angle.Between(player.x, player.y, limitedPath[1].x, limitedPath[1].y);
                 player.currentPathIndex = 1; // Começa no primeiro waypoint do caminho encontrado
                 this.updateUI();
                 this.setActionMode(null);
@@ -1189,7 +1173,6 @@ export default class GameManager {
         fixElement(window.spText);
         fixElement(this.statsPanel);
         fixElement(window.debugText);
-        fixElement(window.optionsPanel);
         fixElement(window.inventoryLabel);
         fixElement(window.coinText);
         fixElement(window.scoreText);
@@ -1356,33 +1339,12 @@ export default class GameManager {
                             }
                         });
                     }
-                } else if (distToSlot < 10 && !p._pendingPath) {
+                } else if (distToSlot < 10) {
                     // Se já chegou no slot, para completamente
                     if (p.body) p.body.setVelocity(0, 0);
                     p.target = null;
                     p.path = null;
                 }
-            }
-
-            // --- LÓGICA DE ROTAÇÃO ANTES DO MOVIMENTO ---
-            if (p.isRotatingToMove) {
-                // Rotaciona suavemente em direção ao targetRotation
-                p.rotation = Phaser.Math.Angle.RotateTo(p.rotation, p.targetRotation, GAME_CONFIG.TURN_SPEED * 2); // Velocidade de rotação
-
-                // Se a rotação estiver quase completa, inicia o movimento
-                if (Math.abs(Phaser.Math.Angle.Normalize(p.rotation - p.targetRotation)) < 0.05) { // Tolerância de 0.05 radianos
-                    p.isRotatingToMove = false;
-                    p.rotation = p.targetRotation; // Garante que a rotação seja exata
-                    // Transfere o caminho pendente para o caminho ativo e inicia o movimento
-                    p.path = p._pendingPath;
-                    p._pendingPath = null;
-                } else {
-                    // Enquanto rotaciona, o jogador não se move
-                    p.setVelocity(0, 0);
-                    // Atualiza a animação para mostrar o frame estático na direção da rotação
-                    if (this.animationManager) this.animationManager.updateAnimation(p, 0, 0); // Passa 0,0 para indicar que está parado
-                }
-                return; // Não processa o movimento normal ainda
             }
 
             // NOVA LÓGICA DE PATHFINDING
@@ -1481,19 +1443,6 @@ export default class GameManager {
                 if (obj1.body) obj1.body.reset(obj1.x, obj1.y);
             });
         });
-    }
-
-    // Atualiza a posição e rotação de um jogador remoto
-    updateCharacterState(characterInfo) {
-        const character = this.getPlayerById(characterInfo.id);
-        // A condição correta é: se o personagem existe e NÃO é o meu próprio personagem (controlado por este cliente),
-        // então atualize seu estado com base nos dados do servidor.
-        if (character && this.networkManager && character.id !== this.networkManager.getClientId()) {
-            character.setPosition(characterInfo.x, characterInfo.y);
-            // Atualiza o status de revelado (Fog of War)
-            character.isRevealed = characterInfo.isRevealed;
-            // A rotação e a animação serão tratadas pela lógica de movimento para suavidade.
-        }
     }
 
     updatePlayerMovement(player) {
@@ -1645,11 +1594,6 @@ export default class GameManager {
             }
         }
     }
-
-    updateShootLine() {
-        // Linha de tiro removida: agora usamos apenas o indicador (bola) na posição do cursor.
-    }
-
     clearDestinationMarker() {
         if (window.destinationMarker) {
             window.destinationMarker.destroy();
@@ -1658,35 +1602,6 @@ export default class GameManager {
         if (window.distanceText) {
             window.distanceText.setText('');
         }
-    }
-
-    updatePlayerDistance() {
-        if (!this.selectedPlayer || !this.selectedPlayer.target || !window.distanceText) return;
-
-        const dist = Phaser.Math.Distance.Between(
-            this.selectedPlayer.x,
-            this.selectedPlayer.y,
-            this.selectedPlayer.target.x,
-            this.selectedPlayer.target.y
-        );
-
-        window.distanceText.setText(`Distância: ${dist.toFixed(2)} px`);
-    }
-    // Olha texto na tela
-    updateConnectedPlayersText() {
-        /*
-        const allCharacters = this.players.getChildren();
-        const playerCount = allCharacters.length;
-        let playerList = `Personagens no Jogo (${playerCount}):\n`;
-        
-        allCharacters.forEach(p => {
-            const isMine = p.team === this.myTeam ? '(Meu Time)' : '(Inimigo)';
-            playerList += `- ${p.id} ${isMine}\n`;
-        });
-        
-        this.shared.connectedPlayersText.setText(playerList);
-        */
-
     }
     // UI updates
     updateUI() {
@@ -1738,34 +1653,6 @@ export default class GameManager {
             onComplete: () => text.destroy()
         });
     }
-
-    handleKillBonusUpdate(data) {
-        const char = this.getPlayerById(data.characterId);
-        if (char) {
-            char.hasKillBonus = data.hasBonus;
-            console.log(`Character ${char.id} kill bonus status: ${char.hasKillBonus}`);
-            
-            if (data.hasBonus) {
-                // Mostra um efeito visual de bônus ganho
-                const bonusText = this.scene.add.text(char.x, char.y - 100, 'KILL BONUS!', {
-                    fontSize: '22px',
-                    fill: '#ff8c00', // Laranja
-                    stroke: '#000000',
-                    strokeThickness: 4,
-                    fontStyle: 'bold'
-                }).setOrigin(0.5).setDepth(2001);
-
-                this.scene.tweens.add({
-                    targets: bonusText,
-                    y: char.y - 140,
-                    alpha: 0,
-                    duration: 2000,
-                    onComplete: () => bonusText.destroy()
-                });
-            }
-        }
-    }
-
     // --- SISTEMA DE UI DE ATRIBUTOS ---
     createStatsUI() {
         const { width, height } = this.scene.scale;
@@ -1805,11 +1692,6 @@ export default class GameManager {
         // Atualiza imediatamente a visibilidade do painel
         this.updateStatsPanel();
     }
-
-    toggleStatsPanel() {
-        // Método mantido vazio para compatibilidade se algo ainda chamar
-    }
-
     updateStatsPanel() {
         if (!this.selectedPlayer) {
             this.statsPanel.setVisible(false);
@@ -1976,58 +1858,6 @@ export default class GameManager {
             }
         });
     }
-
-    /** 
-     * Lógica central para finalizar um turno. Reseta o SP dos jogadores e a UI.
-     * Pode ser chamada tanto localmente (offline) quanto em resposta a um evento do servidor.
-     * @param {object} turnData - Dados opcionais do servidor, como o SP a ser resetado.
-     */
-    endTurn(turnData = {}) {
-        // Reseta a flag que impede a troca de turno por tempo
-        this.turnEnding = false;
-
-        // **CORREÇÃO**: Usa o SP vindo do servidor (se disponível) ou o padrão do jogo.
-        const spToReset = turnData.sp !== undefined ? turnData.sp : GAME_CONFIG.MAX_SP;
-
-        this.players.getChildren().forEach(p => {
-            if (p && p.health > 0) {
-                p.target = null; // Limpa qualquer alvo de movimento pendente
-            }
-        });
-
-        this.selectedPlayer = null;
-        this.setActionMode(null);
-        if (this.shared.highlightBox) this.shared.highlightBox.setVisible(false);
-
-        this.showMessage('Turn finished! Awaiting next turn...');
-        this.updateUI();
-        this.updateStatsPanel(); // Garante que o painel suma ao deselecionar
-    }
-
-    /**
-     * Chamado quando o jogador local clica no botão "Fim de Turno".
-     * Apenas emite um evento para o servidor.
-     * **CORREÇÃO**: Esta função agora obtém o characterId correto do TurnManager.
-     */
-    requestEndTurn() {
-        // RTS: Não existe mais fim de turno manual.
-    }
-
-    handleOfflineTurnChange(nextTeamId) {
-        // RTS: Nada para trocar.
-    }
-
-
-    /**
-     * Atualiza a UI e o estado do jogo com base em quem é o turno.
-     */
-    updateTurnState() {
-        if (this.isMyTurn) {
-            // this.showMessage("É a sua vez!"); // Esta mensagem agora pode ser gerenciada na GameScene
-        }
-        UIManager.updateButtonStates(); // Atualiza a visibilidade/interatividade dos botões
-    }
-
     // --- USO DE ITENS ---
     useItem(slotIndex) {
         if (!this.selectedPlayer) return;

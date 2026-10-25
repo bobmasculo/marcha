@@ -150,99 +150,6 @@ class UIManager {
 
         return buttonContainer;
     }
-
-    static toggleOptionsPanel(scene) {
-        if (!window.optionsPanel) {
-            this.createOptionsPanel(scene);
-        }
-        window.optionsPanel.setVisible(!window.optionsPanel.visible);
-        if (window.optionsPanel.visible) {
-            window.optionsPanel.setDepth(20000);
-        }
-    }
-
-    static createOptionsPanel(scene) {
-        const width = 220;
-        const height = 200; // Aumentado para caber o novo botão
-        const x = scene.cameras.main.width / 2;
-        const y = scene.cameras.main.height / 2;
-
-        const container = scene.add.container(x, y).setScrollFactor(0).setDepth(20000);
-        
-        const bg = scene.add.rectangle(0, 0, width, height, 0x000000, 0.9)
-            .setStrokeStyle(2, 0x00ffff)
-            .setInteractive(); // Bloqueia cliques
-        container.add(bg);
-
-        const title = scene.add.text(0, -height/2 + 25, 'OPTIONS', {
-            fontSize: '20px',
-            fill: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        container.add(title);
-
-        // Botão Fullscreen (Y: -30)
-        const fsBtn = this._createButton(scene, 0, -30, 'FULLSCREEN', {
-            width: 180,
-            onClick: () => {
-                if (scene.scale.isFullscreen) {
-                    scene.scale.stopFullscreen();
-                } else {
-                    scene.scale.startFullscreen();
-                }
-            }
-        });
-        container.add(fsBtn);
-
-        // Botão Créditos (Y: 10)
-        const creditsBtn = this._createButton(scene, 0, 10, 'CREDITS', {
-            width: 180,
-            backgroundColor: 0x444444,
-            onClick: () => this.showCreditsPanel(scene)
-        });
-        container.add(creditsBtn);
-
-        // Botão Fechar (Y: 55)
-        const closeBtn = this._createButton(scene, 0, 55, 'CLOSE', {
-            width: 180,
-            backgroundColor: 0xcc3333,
-            hoverColor: 0xff5555,
-            onClick: () => container.setVisible(false)
-        });
-        container.add(closeBtn);
-
-        window.optionsPanel = container;
-    }
-
-    static showCreditsPanel(scene) {
-        const width = 400;
-        const height = 250;
-        const x = scene.cameras.main.width / 2;
-        const y = scene.cameras.main.height / 2;
-
-        const container = scene.add.container(x, y).setScrollFactor(0).setDepth(21000);
-        
-        const bg = scene.add.rectangle(0, 0, width, height, 0x000000, 0.95)
-            .setStrokeStyle(2, 0xffff00);
-        
-        const title = scene.add.text(0, -height/2 + 30, 'GAME CREDITS', {
-            fontSize: '22px', fill: '#ffff00', fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        const text = scene.add.text(0, 10, 
-            `Trees & Vegetation:\n${GAME_CONFIG.CREDITS.TREES}\n\n` +
-            `Tileset:\n${GAME_CONFIG.CREDITS.TILES}\n\n` +
-            `War Ufo Alpha Team`, 
-            { fontSize: '14px', fill: '#ffffff', align: 'center', wordWrap: { width: 360 } }
-        ).setOrigin(0.5);
-
-        const closeBtn = this._createButton(scene, 0, height/2 - 30, 'BACK', {
-            width: 100,
-            onClick: () => container.destroy()
-        });
-
-        container.add([bg, title, text, closeBtn]);
-    }
     
     static repositionUI(scene) {
         const width = scene.scale.width;
@@ -283,7 +190,6 @@ class UIManager {
             });
         }
         
-        if (window.optionsPanel) { window.optionsPanel._screenX = width / 2; window.optionsPanel._screenY = height / 2; }
     }
 
     // Método para atualizar estado dos botões
@@ -316,20 +222,6 @@ class UIManager {
             }
         }
     }
-
-    static updateScore(scores) {
-        if (window.scoreText) {
-            // Removido o setText aqui para não sobrescrever o status do turno no topo
-            // Efeito visual simples de atualização
-            window.scoreText.setScale(1.2);
-            window.scoreText.scene.tweens.add({
-                targets: window.scoreText,
-                scale: 1,
-                duration: 200
-            });
-        }
-    }
-
     static createInventoryUI(scene) {
         const width = scene.cameras.main.width;
         const height = scene.cameras.main.height;

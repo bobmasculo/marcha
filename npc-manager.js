@@ -28,16 +28,6 @@ export default class NpcManager {
             RETREAT: 'RETREAT'
         };
         
-        // --- LÓGICA DE EXPERIMENTO: RANGED IA ---
-        this.scene.events.on('turn_changed', () => {
-            if (this.npcs) {
-                this.npcs.getChildren().forEach(npc => {
-                    npc.setData('shotsThisTurn', 0);
-                });
-            }
-            if (this.showDebugVision) console.log("[NPC] Contadores de tiros individuais resetados.");
-        });
-
         // Função global para debug: Reseta NPCs para a posição inicial
         window.resetNpcs = () => this.resetAllNpcs();
     }
@@ -192,7 +182,6 @@ export default class NpcManager {
             // Novas propriedades para persistência da perseguição
             npcSprite.setData('targetPlayer', null); // O jogador que ele está atualmente mirando
             npcSprite.setData('lastKnownTargetPos', null); // Última posição conhecida do alvo
-            npcSprite.setData('shotsThisTurn', 0); // Tiros disparados neste turno
 
             npcSprite.health = config.health || GAME_CONFIG.NPC_MAX_HEALTH; 
             npcSprite.armor = config.armor || GAME_CONFIG.NPC_ARMOR;  
@@ -454,7 +443,6 @@ export default class NpcManager {
 
         const VISION_RANGE = GAME_CONFIG.NPC_VISION_RANGE;
         const ATTACK_RANGE = GAME_CONFIG.NPC_ATTACK_RANGE;
-        const activeTeam = this.scene.turnManager ? this.scene.turnManager.getActiveTeamId() : null;
         
         let currentTarget = npc.getData('targetPlayer'); // O alvo que o NPC está perseguindo/atacando
         let nearestPlayerInVision = null; // O jogador mais próximo atualmente visível

@@ -68,29 +68,6 @@ export default class AnimationManager {
         const now = this.scene.time.now;
         let direction = GAME_CONFIG.DIRECTION.IDLE;
 
-        // --- Lógica para o estado de rotação antes do movimento ---
-        if (player.isRotatingToMove) {
-            // Obtém a direção baseada no ângulo alvo de rotação do jogador
-            const angleDeg = Phaser.Math.RadToDeg(player.targetRotation);
-            const rotDir = this.scene.gameManager.getDirectionFromAngle(angleDeg);
-
-            // Tenta tocar a animação de caminhada para a direção, mas sem loop
-            // ou simplesmente define o primeiro frame da animação de caminhada
-            const config = PLAYER_CONFIGS[playerType];
-            const animKey = `${playerType}_${rotDir}`;
-
-            if (this.scene.anims.exists(animKey)) {
-                // Se a animação de caminhada para a direção existe, toca o primeiro frame e para
-                player.anims.play(animKey);
-                player.anims.stopAt(0); // Para no primeiro frame
-                state.currentAnim = animKey;
-            } else {
-                // Fallback: se não houver animação, apenas define o frame inicial da direção
-                player.setFrame(config.animationFrames[rotDir][0]);
-            }
-            return; // Não processa mais nada enquanto estiver rotacionando
-        }
-
         const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
 
         if (speed > 2) {

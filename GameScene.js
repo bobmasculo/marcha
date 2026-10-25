@@ -17,19 +17,16 @@ export default class GameScene extends Phaser.Scene {
         this.animationManager = null; 
         this.soundManager = null; // Gerenciador de som
         this.cursors = null; 
-        this.networkManager = null;
         this.npcManager = null;
         this.minimap = null; // Adicionar propriedade para o Minimap
         this.pathManager = null; // Gerenciador de pathfinding
         this.shotManager = null; // Gerenciador de tiros
-        this.isOffline = false;
     }
  
     init(data) {
         // Recebe os dados da LobbyScene (ou de onde quer que a cena seja iniciada)
         console.log("GameScene iniciada com dados:", data);
         this.initialGameData = data;
-        this.isOffline = true; // SEMPRE ONLINE
         this.missionNumber = (data && data.missionNumber) ? data.missionNumber : 1; 
     }
 
@@ -91,14 +88,6 @@ export default class GameScene extends Phaser.Scene {
     create() {
         console.log('GameScene: Inicializando jogo...');
 
-        // Mock Network Manager para evitar erros
-        this.networkManager = {
-            scene: this,
-            emitPlayerMovement: () => {},
-            emitPlayerShot: () => {},
-            emitEndTurn: () => {}
-        };
-
         // **CORREÇÃO CRÍTICA**: Inicializar os gerenciadores ANTES de registrar os listeners que dependem deles.
         this.animationManager = new AnimationManager(this);
 
@@ -108,7 +97,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Inicia a música e passa o soundManager para o GameManager
         this.soundManager.create();
-        this.gameManager = new GameManager(this, this.animationManager, this.networkManager, this.soundManager, this.isOffline);
+        this.gameManager = new GameManager(this, this.animationManager, this.soundManager);
         this.meuCenario = new Cenario(this);
         this.cursors = this.input.keyboard.createCursorKeys();
 
@@ -409,50 +398,4 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
-    /**
-     * NOVO: Lida com a mudança de turno. É chamado pelo evento 'turn_changed' do TurnManager.
-     * @param {object} turnData - { activeCharacterId, isOurTurn }
-     */
-    handleTurnChange({ activeCharacterId, isOurTurn, sp, teamId }) {
-        console.log(`[GameScene] Novo turno recebido. Personagem: ${activeCharacterId}, É nosso turno?: ${isOurTurn}`);
-
-        // Atualiza o texto do topo com base no time
-        if (window.scoreText) {
-            const label = teamId === 'blue' ? 'CAPITALISTAS JOGANDO' : 'COMUNISTAS JOGANDO';
-            const color = teamId === 'blue' ? '#66ccff' : '#ff6666';
-            window.scoreText.setText(label).setColor(color);
-        }
-
-        // 1. Manda o GameManager resetar o estado de TODOS os personagens (SPs, alvos, etc.)
-        this.gameManager.endTurn({ sp });
-
-        // 2. Se o novo turno for nosso, seleciona o personagem ativo.
-        if (isOurTurn && activeCharacterId) {
-            const newActivePlayer = this.gameManager.getPlayerById(activeCharacterId);
-            if (newActivePlayer) {
-                this.gameManager.selectPlayer(newActivePlayer);
-                this.gameManager.showMessage("É a sua vez!");
-            }
-        }
-
-        // Atualiza a UI (botões, etc.) para refletir o novo estado do turno
-        UIManager.updateButtonStates(isOurTurn);
-    }
-
-    /**
-     * NOVO: Função chamada pela UI para finalizar o turno.
-     * Esta função deve ser chamada pelo seu botão "Finalizar Turno".
-     */
-    requestEndTurn() {
-        // Verifica com o TurnManager se é realmente o turno do jogador
-        if (this.turnManager.isOurTurn()) {
-            // Obtém o ID do personagem ativo diretamente do TurnManager
-            const activeCharacterId = this.turnManager.getActiveCharacterId();
-
-            // Agora 'activeCharacterId' terá o valor correto, resolvendo o problema do 'undefined'.
-            this.networkManager.emitEndTurn(activeCharacterId);
-        } else {
-            console.warn("Tentativa de finalizar o turno quando não é a vez do jogador.");
-        }
-    }
 }

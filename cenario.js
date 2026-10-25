@@ -384,9 +384,6 @@ export default class Cenario {
         }
     }
     
-    cenario() {
-        console.log('Cenário configurado');
-    }
     
     isWorldPositionBlocked(x, y) {
         // Verifica colisão com obstáculos estáticos
@@ -433,102 +430,6 @@ export default class Cenario {
         return true;
     }
     
-    /**
-     * Encontra um caminho entre dois pontos usando algoritmo A* simples.
-     * Usa isWorldPositionBlocked para verificar colisões.
-     * @param {number} startX - Posição X inicial
-     * @param {number} startY - Posição Y inicial
-     * @param {number} endX - Posição X final
-     * @param {number} endY - Posição Y final
-     * @returns {Array<{x, y}>} Lista de waypoints
-     */
-    findPath(startX, startY, endX, endY) {
-        const cellSize = this.cellSize || 50;
-        const gridWidth = Math.ceil((this.gridWidth || 3300) / cellSize);
-        const gridHeight = Math.ceil((this.gridHeight || 2200) / cellSize);
-
-        const startGridX = Math.floor(startX / cellSize);
-        const startGridY = Math.floor(startY / cellSize);
-        const endGridX = Math.floor(endX / cellSize);
-        const endGridY = Math.floor(endY / cellSize);
-
-        // Se o destino estiver fora dos limites, retorna vazio
-        if (endGridX < 0 || endGridX >= gridWidth || endGridY < 0 || endGridY >= gridHeight) {
-            return [];
-        }
-
-        const openList = [];
-        const closedList = new Set();
-
-        // Nó inicial
-        openList.push({
-            x: startGridX,
-            y: startGridY,
-            g: 0,
-            h: Math.abs(startGridX - endGridX) + Math.abs(startGridY - endGridY),
-            f: 0,
-            parent: null
-        });
-
-        while (openList.length > 0) {
-            // Ordena por F (menor custo total primeiro)
-            openList.sort((a, b) => a.f - b.f);
-            const currentNode = openList.shift();
-
-            // Chegou ao destino?
-            if (currentNode.x === endGridX && currentNode.y === endGridY) {
-                const path = [];
-                let curr = currentNode;
-                while (curr.parent) { // Reconstrói o caminho de trás para frente
-                    path.push({
-                        x: curr.x * cellSize + cellSize / 2,
-                        y: curr.y * cellSize + cellSize / 2
-                    });
-                    curr = curr.parent;
-                }
-                return path.reverse();
-            }
-
-            closedList.add(`${currentNode.x},${currentNode.y}`);
-
-            // Vizinhos: Cima, Baixo, Esquerda, Direita
-            const neighbors = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
-
-            for (const offset of neighbors) {
-                const nx = currentNode.x + offset.x;
-                const ny = currentNode.y + offset.y;
-
-                if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight) continue;
-                if (closedList.has(`${nx},${ny}`)) continue;
-
-                // OTIMIZAÇÃO CRÍTICA: Consulta o grid pré-calculado em vez de fazer check de física
-                if (this.grid && this.grid[ny] && this.grid[ny][nx] === 1) {
-                    continue;
-                }
-
-                const g = currentNode.g + 1;
-                const h = Math.abs(nx - endGridX) + Math.abs(ny - endGridY);
-                const f = g + h;
-
-                const existingNode = openList.find(n => n.x === nx && n.y === ny);
-                if (existingNode) {
-                    if (g < existingNode.g) {
-                        existingNode.g = g;
-                        existingNode.f = f;
-                        existingNode.parent = currentNode;
-                    }
-                } else {
-                    openList.push({ x: nx, y: ny, g, h, f, parent: currentNode });
-                }
-            }
-        }
-        return []; // Caminho não encontrado
-    }
-
-    findNearestValidCell(x, y) {
-        return { x, y };
-    }
-
     highlightCell(x, y, isValid) {
         this.highlightGraphics.clear();
         const size = this.cellSize || 50;
