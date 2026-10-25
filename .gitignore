@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+# ferramenta de geração de personagens (15 MB), não faz parte do jogo
+assets/personagens/*.AppImage
+# asset comprado (GraphicRiver), licença não permite redistribuir
+assets/GraphicRiver_Western_Game_Sprite_Sheet.jpg

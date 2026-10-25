@@ -1,0 +1,72 @@
+
+
+A spritesheet of a cartoon marine character inspired by X-COM 1994, 
+isometric view (2.5D), for a video game.
+
+Include animations for:
+- walking in 8 directions (north, south, east, west, northeast, northwest, southeast, southwest)
+- shooting a laser weapon in all 8 directions
+“Incorrect facing, mirrored sprites, sliding walk, no leg movement, wrong direction = BAD, DO NOT GENERATE.”
+Each animation should have 8 frames.
+
+Rules:
+
+64x64 px per sprite
+
+Consistent pivot and proportions
+
+Sharp outlines, simple shading
+
+Lighting from above
+
+Transparent background
+
+Sprite sheet organized in a grid, ready for gameplay
+
+Result: Clear, consistent, and functional sprite sheet for isometric gameplay.
+
+“Incorrect facing, mirrored sprites, sliding walk, no leg movement, wrong direction = BAD, DO NOT GENERATE.”
+
+
+Folha de sprites de fuzileiro naval estilo cartoon, inspirado em X-COM (1994), para videogame.
+
+Vista isométrica 2.5D fixa (45°).
+
+Personagem sempre olha e se move exatamente na direção correta.
+Nenhum sprite espelhado — todas as direções desenhadas manualmente.
+
+Animações:
+
+Andar em 4 direções (Direita,Esquerda, Para Baixo, Para Cima)
+
+4 quadros reais de Corrida, o foco da imagem são os passos (abra e feche as pernas)
+
+Passos claros, alternância visível das pernas
+
+Corpo avança, sem deslizar
+
+Corpo, cabeça e arma alinhados à direção da corrida
+O movimento de caminhada é importante
+
+Regras:
+
+64x64 px por sprite
+
+Pivô e proporções consistentes
+
+Contornos nítidos, sombreamento simples
+
+Iluminação vinda de cima
+
+Fundo transparente
+
+Sprite sheet organizada em grade, pronta para jogo
+
+Resultado: sprite sheet clara, consistente e funcional para jogo isométrico.
+
+
+Pesquisar.
+sudo apt update
+sudo apt install -y php php-cli php-gd git
+
+https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#?body=Body_color_light&head=Human_male_light

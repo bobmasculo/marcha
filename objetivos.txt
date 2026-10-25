@@ -1,0 +1,25 @@
+Pre Obejtovos.
+
+1) Remover os turnos.
+2) Remover os players.
+3) Só deixar 1 player.
+
+
+
+Fazer um RTS.
+
+0) Lider da boiada.
+1) fazer os mineiros.
+2) fazer os soldados.
+3) fazer os mineiros minerar.
+4) fazer os saldados atacarem.
+5) Nova UI.
+6) Conceito de dinheiro.
+7) Upgrades.
+8) Soldados atacarem.
+9) Mineiros minerarem.
+10) Missões.
+11) Fazer um alguem o player boi de piranha. (espião).
+12) Tema comunista?
+
+

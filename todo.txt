@@ -1,0 +1,123 @@
+Lógica do arcerto de ferir.
+
+Roll 1/6
+
+Força da Arma For 2x > que armadura o valor para ferir vai tem de tirar 2 no Roll.
+Se a força arma arma for a maior que a armadura para acertar tem de  tirar 3 
+Se a força da arma for = a armadura tem de tirar 4
+Se a força da arma for menor que armadura tem tirar 5
+Se a força da arma for menor que x 2 armadura ou menor tem de tirar  6
+
+Feito
+
+Implementação da Engine PHASER:
+
+1) Jogo refatorado. versão alfa
+2) Criado Lógica de Times.
+3) Ganha quem acaba com o outro time.
+4) Implementado turnos.
+5) Criado conceito de distancia.
+6) Criada ui basica.
+7) Criada Interface basica.
+8) Implementado conceito para mapas dinamicos.
+9) Implmentando animações.
+10) Criado Loby de espera.
+11) Implementado network o jogo roda em rede.
+12) Implementando Zoom. 
+13) Centralizar a camera no char clicado
+14) Implementar um som de tiro.
+15) Implementar um som de machucado quando acertar.
+16) Implementar uma musica de fundo.
+17) implementado. Dano,Armadura,Força da Arma
+    HP: 100 
+    Dano:(10) - 2x tiro
+    Armadura: 40 
+    Força da Arma: 40
+18) implementado drag da barra ui.
+19) Logica de ataque.
+20) Rolar o dado.      
+21) 3 SPS.
+22) Agora vamos implemetnar o critico, quando ele tirar 6 vai o dano vai ser dobrado e ganhar + 1sp.
+23) O personagem que matar 1 ganhar um bonus, ele ganhar no próximo se acertar ele vai rolar de um dado se for >4 o dano dobrado se o dadao acertou foi 6 e vai mutiplicar ou seja critico overkill
+24) Implementado armas.
+25) Matar NPC.
+26) Implementado mapas e colissões.
+27) Implementado ficar vermelho onde pode acertar.
+28) Colisão com prédios.
+29) Parcialmente funcionando com ataque de char. 
+30) Som de acoalização do npc com o player.
+31) A info no click.
+32) três chars destintos para cada lado.
+33) Mais um char destinto para cada lado.
+34) Melhorado a colisão e nivel razoavel. 
+35) Criado drops.
+36) Players equipam o drop.
+37) Criado itens na ui.
+38) Melhorias do mapas.
+39) Mecanica de agro parcialmente funcionando.
+40) Arrumar a UI.
+41) implementado alvo.
+42) novos npcs.
+43) implementar engenheiro.
+44) Fazer um mini Mapa.
+45)  O jogo vai ter > pontução e matar o time todo e 10 turnos.  
+Matar um npc vai valer 10 pontos, matar um personagem adversario vai valer 100 pontos.
+46) Botões de Zoom.
+47) Refino do Mini Mapa com npcs.
+48) Tem de um marcação dinheiro.
+49) Outros itens tem chance de dropar do alien 1.
+50) Só o engenheiro pega o drop especial.
+51) O char engenheiro ele vai ter um item especial, ativar / desativar o especial, nos objetivos,
+O objetiva da home base é ganhar e perde. custa um item para ativar e destivar.
+52) Objetivos voltam em dois turnos.
+53) Quem entrar na area de o objeto da bomba morre e a bomba some e objetivo.
+54) Coalizão dos NPCS,
+
+Para implementar:
+
+
+6) O engeheiro vai poder voltar a vida se pagar.
+8) Drop de dinheiro do npcs vrs dinhero = respawn, custo de respaw do egenheiro.
+5 moedas.
+12) Vai custar um valor x a volta / o drop do dinheiro é 70%, 10% por item shotgun e 10% item do engenheiro.
+
+
+Upgrades!
+
+1) Botão instruções.
+2) Implementar um NPC nas bases para compra, o respaw e itens.
+
+ideias 2:
+
+Imortal!! DOS 1994.
+
+Visão isométrica
+
+Botão de habilidade especial. 
+Healer vai gastar 1 sp e curar todos os personagens do time dele que tiverem no range dele.
+???
+dá energia.
+dá buff temporário.
+???
+reduz defesa do time inimigo.
+Aliens.
+???
+
+
+Bugs.
+8) Botão resetar Zoom.
+10) Ainda temos problemas com a passagem de turno. forceTurn('red').
+
+
+
+
+Fazer.
+
+
+4) Fog of war 10s.
+8) Continuar refinamento graficos (melhor os tanks).
+9) Implementar Healer.
+10) Regras do healer.
+11) Pixel arts dos personagens armados.
+12) Implementar personagens usando pistola/Rifle.
+
