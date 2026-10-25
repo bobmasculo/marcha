@@ -48,7 +48,7 @@ export const UnitMethods = {
         player.visionRange = config.visionRange || 600;
         player.weapon = config.weapon || 'pistol'; // Atribui arma padrão da config
         player.hasKillBonus = false;
-        player.inventory = []; // Inicializa inventário vazio
+        player.inventory = []; // Slots { id, count }; só o do comandante é usado
         player.coins = 0;
 
         player.setDepth(y);
@@ -532,8 +532,9 @@ export const UnitMethods = {
         const dist = Phaser.Math.Distance.Between(player.x, player.y, player.target.x, player.target.y);
 
         const angle = Phaser.Math.Angle.Between(player.x, player.y, player.target.x, player.target.y);
-        let velocityX = Math.cos(angle) * GAME_CONFIG.SPEED;
-        let velocityY = Math.sin(angle) * GAME_CONFIG.SPEED;
+        const speed = GAME_CONFIG.SPEED * (player.speedMult || 1);
+        let velocityX = Math.cos(angle) * speed;
+        let velocityY = Math.sin(angle) * speed;
 
         // LÓGICA DE SEPARAÇÃO: Impede que os personagens do mesmo time fiquem um em cima do outro
         // e se prendam mutuamente nas quinas das paredes.

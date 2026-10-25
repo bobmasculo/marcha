@@ -18,6 +18,8 @@ npm start        # http://localhost:8080
 | Mover o comandante / atirar no alien | clique esquerdo no chão / no alien |
 | Câmera | setas ou arrastar com o mouse |
 | Zoom | `+` / `-` |
+| Atirar no cursor / no alien mais próximo | botão direito / `Espaço` |
+| Usar item do inventário | `1` a `4` ou clique no slot |
 | Upgrades | `P` |
 | Painel de stats | `U` |
 | Minimapa | `M` |
@@ -41,6 +43,21 @@ npm start        # http://localhost:8080
 | `npc-manager.js` | IA dos aliens (patrulha, perseguição, recuo) e drops |
 | `cenario.js`, `path-manager.js` | Mapa, grid, linha de visão e pathfinding (EasyStar) |
 | `ShotManager.js`, `animation-manager.js`, `sound-manager.js`, `minimap.js`, `ui-manager.js` | Efeitos, animações, áudio, minimapa e HUD |
+
+## Itens
+
+Todos os itens ficam na tabela `ITEMS` em `config.js`. Para criar um: uma entrada na tabela e uma imagem em `assets/items/`.
+
+| Item | Efeito |
+|---|---|
+| Moeda | +$10 ao tocar (não ocupa slot) |
+| Medkit | +20 de vida (pilha de até 3) |
+| Escopeta | Equipa e desequipa a arma; fica no inventário |
+| Bomba | Mata todos os aliens num raio de 350 (não atinge guardas nem suas unidades) |
+| Granada | 40 de dano num raio de 150 no NPC mais próximo (pilha de até 3) |
+| Adrenalina | Comandante 50% mais rápido por 8 s |
+
+Item no chão some em 30 s. Inventário: 4 slots, compartilhado e guardado no comandante.
 
 ## Criar uma missão
 

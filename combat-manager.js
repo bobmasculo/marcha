@@ -242,10 +242,11 @@ export const CombatMethods = {
         else this.showMessage('Nenhum alien ao alcance');
     },
 
-    /** Bomba: mata todos os aliens dentro de BOMB_RADIUS ao redor de (x, y). */
-    detonateBomb(x, y) {
-        const radius = GAME_CONFIG.BOMB_RADIUS;
-
+    /**
+     * Explosão em área. Atinge só NPCs: unidades do jogador nunca são feridas.
+     * damage null = letal. targets = tipos de NPC atingidos (omitido = todos; a bomba usa só 'alien').
+     */
+    blastAt(x, y, radius, { damage = null, targets = null } = {}) {
         // Onda de choque + clarão + tremor de câmera
         const wave = this.scene.add.circle(x, y, 20, 0xff8800, 0.5).setStrokeStyle(4, 0xffee88).setDepth(3000);
         this.scene.tweens.add({
@@ -253,15 +254,28 @@ export const CombatMethods = {
             onComplete: () => wave.destroy()
         });
         this.scene.shotManager.createExplosionEffect(x, y);
-        this.scene.cameras.main.shake(400, 0.01);
+        this.scene.cameras.main.shake(radius > 250 ? 400 : 200, radius > 250 ? 0.01 : 0.005);
         if (this.soundManager) this.soundManager.play('shoot');
 
-        // Percorre uma cópia: matar um alien pode soltar drops e mexer na lista
+        // Percorre uma cópia: matar um NPC pode soltar drops e mexer na lista
         const victims = this.scene.npcManager.npcs.getChildren().filter(npc =>
-            npc.active && npc.health > 0 && Phaser.Math.Distance.Between(x, y, npc.x, npc.y) <= radius
+            npc.active && npc.health > 0 &&
+            (!targets || targets.includes(npc.getData('type'))) &&
+            Phaser.Math.Distance.Between(x, y, npc.x, npc.y) <= radius
         );
-        victims.forEach(npc => this.handleNpcDamage({ npcId: npc.getData('id'), damage: npc.health }));
-        this.showMessage(`BOOM! ${victims.length} aliens eliminados`);
+        victims.forEach(npc => this.handleNpcDamage({ npcId: npc.getData('id'), damage: damage === null ? npc.health : damage }));
+        this.showMessage(victims.length ? `BOOM! ${victims.length} atingidos` : 'BOOM! Ninguém atingido');
+    },
+
+    /** Sorteia um item pelo dropWeight da tabela ITEMS. */
+    rollDrop() {
+        const entries = Object.entries(ITEMS);
+        let roll = Math.random() * entries.reduce((sum, [, def]) => sum + def.dropWeight, 0);
+        for (const [id, def] of entries) {
+            roll -= def.dropWeight;
+            if (roll < 0) return id;
+        }
+        return entries[0][0];
     },
 
     /**
@@ -517,9 +531,7 @@ export const CombatMethods = {
                 
                 // Lógica de Drop Offline
                 if (Math.random() < 0.9) { // Aumentado para 90% de chance de drop total
-                    // Pesos: Moeda, Shotgun, Medkit e Bomba, 25% cada
-                    const rand = Math.random();
-                    const itemId = rand < 0.25 ? 'moeda' : (rand < 0.50 ? 'shotgun' : (rand < 0.75 ? 'medkit' : 'bomb'));
+                    const itemId = this.rollDrop();
                     
                     const drop = {
                         id: `drop_${Date.now()}_${Math.floor(Math.random()*1000)}`,

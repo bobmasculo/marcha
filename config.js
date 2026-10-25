@@ -9,8 +9,9 @@ const GAME_CONFIG = {
     SHOOT_OVERLAY_ALPHA: 0.22, // opacidade do overlay fora do alcance (0.0 - 1.0)
     NPC_ATTACK_RANGE: 400, // Agora os Aliens atacam de longe
     NPC_DAMAGE: 5, // Dano base do NPC (antes da redução por armadura)
-    COIN_DROP_VALUE: 10, // Moedas ganhas ao pegar uma moeda dropada
-    BOMB_RADIUS: 350, // Raio da bomba: mata todos os aliens dentro dele
+    INVENTORY_SLOTS: 4,
+    DROP_LIFETIME_MS: 30000, // Item no chão some depois disso (pisca nos últimos 5 s)
+    DROP_WARNING_MS: 5000,
     ARMOR_SCALE: 100, // Redução de dano = armadura / (armadura + ARMOR_SCALE)
     COMMANDER_REGEN_PER_SEC: 2, // Regeneração de vida do comandante por segundo
     NPC_LEASH_RANGE: 650, // Distância do alvo além da qual o NPC desiste sem linha de visão
@@ -549,6 +550,30 @@ const NPC_CONFIGS = {
     }
 };
 
+/**
+ * Todos os itens do jogo. Para criar um item novo: uma entrada aqui e uma imagem.
+ *   use:   'instant' age ao tocar e não ocupa slot | 'consume' gasta ao usar | 'equip' troca algo e fica no inventário
+ *   stack: máximo por slot (padrão 1)
+ *   unique: só pode ter um no inventário
+ *   effect: heal | weapon | blast (+ damage, targets, throwRange) | speed (+ duration) | coins
+ *   targets: tipos de NPC atingidos por uma explosão (omitido = todos)
+ *   sheet: se a imagem é spritesheet; scale: tamanho do item no chão
+ */
+const ITEMS = {
+    moeda:      { name: 'Moeda',      desc: 'Ganha $10',                               texture: 'coin', path: 'assets/coin.png', sheet: { frameWidth: 32, frameHeight: 32 }, scale: 1, anim: 'coin_spin',
+                  use: 'instant', effect: { coins: 10 }, dropWeight: 22 },
+    medkit:     { name: 'Medkit',     desc: 'Cura 20 de vida',                         texture: 'medkit', path: 'assets/items/medkit.png', scale: 0.9,
+                  use: 'consume', stack: 3, effect: { heal: 20 }, dropWeight: 22 },
+    shotgun:    { name: 'Escopeta',   desc: 'Equipa a escopeta (clique de novo para voltar)', texture: 'shotgun', path: 'assets/drops/shotgun.png', scale: 0.2,
+                  use: 'equip', unique: true, effect: { weapon: 'shotgun' }, dropWeight: 14 },
+    bomb:       { name: 'Bomba',      desc: 'Mata todos os aliens num raio de 350 (não atinge guardas)', texture: 'bomb', path: 'assets/items/bomb.png', scale: 0.5,
+                  use: 'consume', effect: { blast: 350, damage: null, targets: ['alien'] }, dropWeight: 12 },
+    granada:    { name: 'Granada',    desc: 'Lança no alien mais próximo: 40 de dano num raio de 150', texture: 'granada', path: 'assets/items/granada.png', scale: 0.9,
+                  use: 'consume', stack: 3, effect: { blast: 150, damage: 40, throwRange: 450 }, dropWeight: 18 },
+    adrenalina: { name: 'Adrenalina', desc: 'Comandante 50% mais rápido por 8 s',      texture: 'adrenalina', path: 'assets/items/adrenalina.png', scale: 0.9,
+                  use: 'consume', effect: { speed: 1.5, duration: 8000 }, dropWeight: 12 }
+};
+
 /** Upgrades comprados com moedas. base: custo do nível 1 (dobra a cada nível). per: efeito somado por nível. */
 const UPGRADE_DEFS = {
     damage: { label: 'DANO',      base: 50, max: 5, per: 0.2,  desc: '+20% de dano por nível' },
@@ -568,3 +593,4 @@ window.mapaArray = mapaArray;
 window.extras_mapas = extras_mapas;
 window.PLAYER_SETUP = PLAYER_SETUP;
 window.UPGRADE_DEFS = UPGRADE_DEFS;
+window.ITEMS = ITEMS;

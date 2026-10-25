@@ -25,6 +25,7 @@ export default class GameManager {
         this.actionMode = null;
         this.messageProgress = 0; // Progresso do objetivo (0 a 100)
         this.messageCurrentCost = GAME_CONFIG.MESSAGE_INITIAL_COST || 100;
+        this.effects = {}; // Efeitos temporários ativos (adrenalina etc.)
         this.isGameOver = false; // Pausa a simulação e evita telas de fim de jogo duplicadas
         this.isIsometricView = false; // Flag para o modo isométrico
         this.lastRegenTime = 0; // Controle de regeneração do comandante
@@ -68,6 +69,7 @@ export default class GameManager {
         this.updateCamera();
         this.updateLocalPlayerMovement();
         this.updatePlayers();
+        this.updateEffects();
 
         // --- LÓGICA DE REGENERAÇÃO DO COMANDANTE (10 HP/s) ---
         if (this.commander && this.commander.active && this.commander.health > 0 && this.commander.health < this.commander.maxHealth) {

@@ -49,25 +49,12 @@ export default class NpcManager {
             }
         }
 
-        // Carrega assets temporários para drops
-        /*
-        if (!this.scene.textures.exists('rock')) {
-            this.scene.load.image('rock', 'assets/rock.png');
-        }
-        */    
-        if (!this.scene.textures.exists('coin')) {
-            this.scene.load.spritesheet('coin', 'assets/coin.png', { frameWidth: 32, frameHeight: 32 });
-        }
-
-
-        if (!this.scene.textures.exists('shotgun')) {
-            this.scene.load.image('shotgun', 'assets/drops/shotgun.png');
-        }
-        if (!this.scene.textures.exists('medkit')) {
-            this.scene.load.image('medkit', 'assets/items/elec.png'); // Certifique-se de ter essa imagem
-        }
-        if (!this.scene.textures.exists('bomb')) {
-            this.scene.load.image('bomb', 'assets/items/bomb.png'); // Fallback ou imagem nova
+        // Imagens dos itens vêm da tabela ITEMS (config.js)
+        for (const id in ITEMS) {
+            const def = ITEMS[id];
+            if (this.scene.textures.exists(def.texture)) continue;
+            if (def.sheet) this.scene.load.spritesheet(def.texture, def.path, def.sheet);
+            else this.scene.load.image(def.texture, def.path);
         }
     }
 
@@ -103,7 +90,7 @@ export default class NpcManager {
             });
         }
 
-        // Cria animação da moeda (frames 0 a 3)
+        // Animação da moeda (frames 0 a 7)
         if (!this.scene.anims.exists('coin_spin')) {
             this.scene.anims.create({
                 key: 'coin_spin',
@@ -795,12 +782,17 @@ export default class NpcManager {
     updateDropCollection(players) {
         const gm = this.scene.gameManager;
         Object.values(this.activeDrops).forEach(drop => {
-            // Inventário cheio: o item continua no chão
-            if (!gm.canPickUp(drop.itemId)) return;
             const picker = players.find(p =>
                 p.active && p.health > 0 && Phaser.Math.Distance.Between(p.x, p.y, drop.x, drop.y) < 60
             );
-            if (picker) this.handleItemPickedUp({ dropId: drop.id, pickerId: picker.id, itemId: drop.itemId });
+            if (!picker) return;
+            if (gm.canPickUp(drop.itemId)) {
+                this.handleItemPickedUp({ dropId: drop.id, pickerId: picker.id, itemId: drop.itemId });
+            } else if (this.scene.time.now - (drop.lastFullMessage || 0) > 3000) {
+                // Inventário cheio: o item continua no chão, com aviso
+                drop.lastFullMessage = this.scene.time.now;
+                gm.showMessage('Inventário cheio!');
+            }
         });
     }
 
@@ -850,48 +842,40 @@ export default class NpcManager {
     }
 
     /**
-     * Lida com o evento de item dropado vindo do servidor
+     * Cria o item no chão a partir da tabela ITEMS. Some sozinho depois de DROP_LIFETIME_MS,
+     * piscando nos últimos DROP_WARNING_MS.
      */
     handleItemDropped(drop) {
-        console.log(`[NpcManager] Recebido drop ${drop.itemId} em (${drop.x}, ${drop.y})`);
-
-        // Escolhe textura baseada no itemId
-        let texture = 'rock'; // padrão
-        let scale = 0.1; // escala padrão
-        let anim = null; // animação padrão (nenhuma)
-
-        if (drop.itemId === 'moeda') {
-            texture = 'coin';
-            scale = 1; // Moeda é 32x32, escala 1 fica bom
-            anim = 'coin_spin';
-        } else if (drop.itemId === 'shotgun') {
-            texture = 'shotgun'; 
-            scale = 0.2; // Escala específica para a shotgun
-        } else if (drop.itemId === 'medkit') {
-            texture = 'medkit';
-            scale = 0.5;
-        } else if (drop.itemId === 'bomb') {
-            texture = 'bomb';
-            scale = 0.5;
+        const def = ITEMS[drop.itemId];
+        if (!def) {
+            console.error(`[NpcManager] Item desconhecido: ${drop.itemId}`);
+            return;
         }
 
-        // Cria sprite visual para o drop
-        const dropSprite = this.scene.physics.add.sprite(drop.x, drop.y, texture);
-        dropSprite.setScale(scale); // Aplica a escala individual
+        const dropSprite = this.scene.physics.add.sprite(drop.x, drop.y, def.texture);
+        dropSprite.setScale(def.scale);
         dropSprite.setDepth(2000); // Profundidade alta para aparecer acima de tudo
+        if (def.anim) dropSprite.play(def.anim);
 
-        // Se houver animação definida, toca ela
-        if (anim) {
-            dropSprite.play(anim);
-        }
+        const lifetime = GAME_CONFIG.DROP_LIFETIME_MS;
+        const warning = GAME_CONFIG.DROP_WARNING_MS;
+        const blink = this.scene.time.delayedCall(lifetime - warning, () => {
+            if (!dropSprite.active) return;
+            this.scene.tweens.add({ targets: dropSprite, alpha: 0.2, duration: 250, yoyo: true, repeat: -1 });
+        });
+        const expire = this.scene.time.delayedCall(lifetime, () => this.removeDrop(drop.id));
 
-        // Armazena no activeDrops
-        this.activeDrops[drop.id] = {
-            ...drop,
-            sprite: dropSprite
-        };
+        this.activeDrops[drop.id] = { ...drop, sprite: dropSprite, timers: [blink, expire] };
+    }
 
-        console.log(`[NpcManager] Drop ${drop.itemId} criado visualmente com textura ${texture} em (${drop.x}, ${drop.y})`);
+    /** Remove o item do chão (pego ou expirado), cancelando timers e tweens de aviso. */
+    removeDrop(dropId) {
+        const drop = this.activeDrops[dropId];
+        if (!drop) return;
+        drop.timers.forEach(t => t.remove(false));
+        this.scene.tweens.killTweensOf(drop.sprite);
+        drop.sprite.destroy();
+        delete this.activeDrops[dropId];
     }
 
     /**
@@ -900,15 +884,7 @@ export default class NpcManager {
     handleItemPickedUp(data) {
         console.log(`[NpcManager] Recebido item_picked_up para ${data.dropId}, picker: ${data.pickerId}`);
         const dropId = data.dropId;
-        if (this.activeDrops[dropId]) {
-            // Destroi o sprite visual
-            this.activeDrops[dropId].sprite.destroy();
-            // Remove do activeDrops
-            delete this.activeDrops[dropId];
-            console.log(`[NpcManager] Drop ${dropId} recolhido e removido`);
-        } else {
-            console.log(`[NpcManager] Drop ${dropId} não encontrado em activeDrops`);
-        }
+        this.removeDrop(dropId);
 
         // Adiciona ao inventário do jogador via GameManager
         if (this.scene.gameManager && data.itemId) {

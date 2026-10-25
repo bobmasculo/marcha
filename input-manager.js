@@ -25,6 +25,11 @@ export const InputMethods = {
         // Espaço: atira no alien mais próximo
         this.scene.input.keyboard.on('keydown-SPACE', () => this.shootAtNearest());
 
+        // Teclas 1 a 4: usar o item do slot
+        ['ONE', 'TWO', 'THREE', 'FOUR'].forEach((key, i) => {
+            this.scene.input.keyboard.on(`keydown-${key}`, () => this.useItem(i));
+        });
+
         // Tecla 'P': painel de upgrades
         this.scene.input.keyboard.on('keydown-P', () => UIManager.toggleUpgradePanel(this.scene));
 
@@ -280,6 +285,8 @@ export const InputMethods = {
         fixElement(window.upgradeBtn);
         fixElement(window.upgradePanel);
         fixElement(window.objectiveText);
+        fixElement(window.effectText);
+        fixElement(window.itemTooltip);
         fixElement(window.distanceText);
 
         // Corrige a posição dos slots e ícones do inventário
@@ -287,6 +294,8 @@ export const InputMethods = {
             window.inventorySlots.forEach(slotObj => {
                 fixElement(slotObj.slot);
                 fixElement(slotObj.icon);
+                fixElement(slotObj.countText);
+                fixElement(slotObj.keyLabel);
             });
         }
     },

@@ -71,6 +71,11 @@ class UIManager {
             fontStyle: 'bold'
         }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(10001);
 
+        // Efeitos temporários ativos (adrenalina etc.), logo abaixo do objetivo
+        window.effectText = scene.add.text(width / 2, 60, '', {
+            fontSize: '14px', fill: '#ffdd44', align: 'center', stroke: '#000000', strokeThickness: 3, fontStyle: 'bold'
+        }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(10001);
+
         // Moedas centralizadas à esquerda do centro
         window.coinText = scene.add.text(width / 2 - 50, height - GAME_CONFIG.UI_BAR_HEIGHT / 2, 'Coins: 0', {
             fontSize: '14px',
@@ -214,8 +219,12 @@ class UIManager {
                 const x = invStartX + (i * (slotSize + spacing)) + slotSize/2;
                 slotObj.slot._screenX = x; slotObj.slot._screenY = invStartY;
                 slotObj.icon._screenX = x; slotObj.icon._screenY = invStartY;
+                slotObj.countText._screenX = x + slotSize / 2 - 3; slotObj.countText._screenY = invStartY + slotSize / 2 - 2;
+                slotObj.keyLabel._screenX = x - slotSize / 2 + 3; slotObj.keyLabel._screenY = invStartY - slotSize / 2 + 2;
             });
         }
+        if (window.itemTooltip) { window.itemTooltip._screenX = invStartX; window.itemTooltip._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT - 8; }
+        if (window.effectText) { window.effectText._screenX = width / 2; window.effectText._screenY = 60; }
         
     }
 
@@ -336,7 +345,12 @@ class UIManager {
             fontStyle: 'bold'
         }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(10001);
 
-        for (let i = 0; i < 4; i++) {
+        // Dica com nome e efeito do item sob o cursor
+        window.itemTooltip = scene.add.text(startX, height - barHeight - 8, '', {
+            fontSize: '12px', fill: '#ffffff', backgroundColor: '#000000cc', padding: { x: 8, y: 4 }, wordWrap: { width: 280 }
+        }).setOrigin(0, 1).setScrollFactor(0).setDepth(10003).setVisible(false);
+
+        for (let i = 0; i < GAME_CONFIG.INVENTORY_SLOTS; i++) {
             const x = startX + (i * (slotSize + spacing)) + slotSize/2;
             
             // Fundo do slot
@@ -344,6 +358,16 @@ class UIManager {
                 .setStrokeStyle(1, 0x555555)
                 .setScrollFactor(0)
                 .setDepth(10001);
+
+            // Número da tecla de atalho (1 a 4)
+            const keyLabel = scene.add.text(x - slotSize / 2 + 3, startY - slotSize / 2 + 2, `${i + 1}`, {
+                fontSize: '9px', fill: '#888888'
+            }).setScrollFactor(0).setDepth(10002);
+
+            // Contagem da pilha
+            const countText = scene.add.text(x + slotSize / 2 - 3, startY + slotSize / 2 - 2, '', {
+                fontSize: '11px', fill: '#ffffff', stroke: '#000000', strokeThickness: 3, fontStyle: 'bold'
+            }).setOrigin(1, 1).setScrollFactor(0).setDepth(10003).setVisible(false);
             
             // Ícone do item (inicialmente invisível)
             const icon = scene.add.sprite(x, startY, null)
@@ -354,54 +378,53 @@ class UIManager {
                 .on('pointerdown', (pointer) => {
                     pointer.event.stopPropagation(); // Impede clique no mapa
                     if (window.gameManager) window.gameManager.useItem(i);
-                });
+                })
+                .on('pointerover', () => {
+                    const item = window.inventorySlots[i].item;
+                    if (!item) return;
+                    const def = ITEMS[item.id];
+                    window.itemTooltip.setText(`${def.name}\n${def.desc}`);
+                    window.itemTooltip._screenX = startX;
+                    window.itemTooltip.setVisible(true);
+                })
+                .on('pointerout', () => window.itemTooltip.setVisible(false));
                 
-            window.inventorySlots.push({ slot, icon });
+            window.inventorySlots.push({ slot, icon, countText, keyLabel, item: null });
         }
     }
 
-    static updateInventory(items, equippedWeapon) {
+    /** slots: lista de { id, count } do comandante. equippedWeapon: arma em uso (destaca o slot). */
+    static updateInventory(slots, equippedWeapon) {
         if (!window.inventorySlots) return;
-        
-        console.log('[UIManager] Atualizando inventário:', items);
 
         window.inventorySlots.forEach((slotObj, index) => {
-            if (index < items.length) {
-                const itemId = items[index];
-                let texture = 'rock'; // fallback
-                if (itemId === 'moeda') texture = 'coin';
-                else if (itemId === 'shotgun') texture = 'shotgun';
-                else if (itemId === 'medkit') texture = 'medkit';
-                else if (itemId === 'bomb') texture = 'bomb';
-
-                // Verificação de segurança: se a textura não existe, usa fallback para 'rock'
-                if (!slotObj.icon.scene.textures.exists(texture)) {
-                    console.warn(`[UIManager] Textura '${texture}' para o item '${itemId}' não encontrada. Usando 'rock'.`);
-                    texture = 'rock';
-                }
-
-                slotObj.icon.setTexture(texture);
-                if (itemId === 'moeda') slotObj.icon.setFrame(0); // Pega o primeiro frame da moeda
-                
-                // Ajusta escala para caber no slot (max 26px)
-                if (slotObj.icon.width > 0 && slotObj.icon.height > 0) {
-                    const scale = Math.min(26 / slotObj.icon.width, 26 / slotObj.icon.height);
-                    slotObj.icon.setScale(scale);
-                    // FIX: Atualiza a escala base para o fixUI do GameManager não distorcer no zoom
-                    slotObj.icon._baseScaleX = scale;
-                    slotObj.icon._baseScaleY = scale;
-                } else {
-                    slotObj.icon.setScale(1); // Fallback seguro
-                }
-                
-                slotObj.icon.setVisible(true);
-                // Realça slot ocupado; verde quando é a arma em uso
-                const isEquipped = itemId === equippedWeapon;
-                slotObj.slot.setStrokeStyle(isEquipped ? 2 : 1, isEquipped ? 0x00ff00 : 0xffffff);
-            } else {
+            const item = slots[index];
+            slotObj.item = item || null;
+            if (!item) {
                 slotObj.icon.setVisible(false);
+                slotObj.countText.setVisible(false);
                 slotObj.slot.setStrokeStyle(1, 0x555555); // Slot vazio escuro
+                return;
             }
+
+            const def = ITEMS[item.id];
+            slotObj.icon.setTexture(def.texture);
+            if (def.sheet) slotObj.icon.setFrame(0);
+
+            // Ajusta escala para caber no slot (max 26px)
+            const scale = Math.min(26 / slotObj.icon.width, 26 / slotObj.icon.height);
+            slotObj.icon.setScale(scale);
+            // Atualiza a escala base para o fixUI do GameManager não distorcer no zoom
+            slotObj.icon._baseScaleX = scale;
+            slotObj.icon._baseScaleY = scale;
+            slotObj.icon.setVisible(true);
+
+            // Contagem da pilha (só aparece com 2 ou mais)
+            slotObj.countText.setText(`x${item.count}`).setVisible(item.count > 1);
+
+            // Realça slot ocupado; verde quando é a arma em uso
+            const isEquipped = def.effect.weapon && def.effect.weapon === equippedWeapon;
+            slotObj.slot.setStrokeStyle(isEquipped ? 2 : 1, isEquipped ? 0x00ff00 : 0xffffff);
         });
     }
 }
