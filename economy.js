@@ -6,6 +6,7 @@ export const EconomyMethods = {
      * Executa a transmissão da mensagem para avançar no objetivo principal.
      */
     transmitMessage() {
+        if (this.mission.objective.type !== 'transmit') return;
         if (!this.commander || this.commander.coins < this.messageCurrentCost) {
             this.showMessage(`Need $${this.messageCurrentCost} to transmit!`);
             return;
@@ -21,6 +22,7 @@ export const EconomyMethods = {
         }
 
         this.showMessage(`Transmission: ${this.messageProgress}% complete!`);
+        this.updateObjectiveUI();
         this.updateUI();
 
         if (this.messageProgress >= 100) {
@@ -40,14 +42,14 @@ export const EconomyMethods = {
 
         if (itemId === 'medkit') {
             // Verifica se o personagem já está com a vida cheia
-            if (player.health >= GAME_CONFIG.MAX_HEALTH) {
+            if (player.health >= player.maxHealth) {
                 this.showMessage("Health already full!");
                 return;
             }
             
             const healAmount = 20; // Valor solicitado de cura
             const oldHealth = player.health;
-            const newHealth = Math.min(oldHealth + healAmount, GAME_CONFIG.MAX_HEALTH);
+            const newHealth = Math.min(oldHealth + healAmount, player.maxHealth);
             
             // Efeito visual de cura (Texto Verde subindo)
             this.showFloatingText(player.x, player.y - 60, `+${Math.round(newHealth - oldHealth)} HP`, '#00ff00');
@@ -62,7 +64,7 @@ export const EconomyMethods = {
             player.inventory.splice(slotIndex, 1);
             this.updateInventoryUI();
             this.updateUI();
-            this.showMessage(`Unit healed! HP: ${player.health}/${GAME_CONFIG.MAX_HEALTH}`);
+            this.showMessage(`Unit healed! HP: ${player.health}/${player.maxHealth}`);
         }
 
     },
@@ -93,13 +95,14 @@ export const EconomyMethods = {
     collectOre(miner, ore) {
         if (!ore.active) return;
 
-        const value = ore.getData('value') || GAME_CONFIG.ORE_VALUE;
+        const value = Math.round((ore.getData('value') || GAME_CONFIG.ORE_VALUE) * (1 + this.getUpgradeBonus('mining')));
         if (this.commander) {
             this.commander.coins += value;
             this.updateUI();
             // Feedback visual rápido de coleta
             this.showFloatingText(ore.x, ore.y, `+$${value}`, '#0000ff');
             ore.destroy(); // Remove o minério do mapa
+            this.registerOreMined(value);
         }
     },
 

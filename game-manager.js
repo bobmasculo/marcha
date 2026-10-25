@@ -5,11 +5,13 @@
 //   unit-manager.js    unidades, seleção, formação e movimento
 //   economy.js         moedas, transmissão, mineração e inventário
 //   game-ui.js         painel de stats, mensagens e fim de jogo
+//   progression.js     missões, objetivos e upgrades
 import { InputMethods } from './input-manager.js';
 import { CombatMethods } from './combat-manager.js';
 import { UnitMethods } from './unit-manager.js';
 import { EconomyMethods } from './economy.js';
 import { GameUIMethods } from './game-ui.js';
+import { ProgressionMethods } from './progression.js';
 
 export default class GameManager {
     constructor(scene, animManager, soundManager) {
@@ -23,7 +25,6 @@ export default class GameManager {
         this.actionMode = null;
         this.messageProgress = 0; // Progresso do objetivo (0 a 100)
         this.messageCurrentCost = GAME_CONFIG.MESSAGE_INITIAL_COST || 100;
-        this.turnEnding = true; // Inicia como TRUE para bloquear o timeout antes do jogo começar
         this.isGameOver = false; // Pausa a simulação e evita telas de fim de jogo duplicadas
         this.isIsometricView = false; // Flag para o modo isométrico
         this.lastRegenTime = 0; // Controle de regeneração do comandante
@@ -47,6 +48,8 @@ export default class GameManager {
         // Tornar acessível globalmente para UI
         window.gameManager = this;
 
+        this.initProgression();
+
         this.setupInput();
         this.setupResizeHandler();
 
@@ -67,10 +70,10 @@ export default class GameManager {
         this.updatePlayers();
 
         // --- LÓGICA DE REGENERAÇÃO DO COMANDANTE (10 HP/s) ---
-        if (this.commander && this.commander.active && this.commander.health > 0 && this.commander.health < GAME_CONFIG.MAX_HEALTH) {
+        if (this.commander && this.commander.active && this.commander.health > 0 && this.commander.health < this.commander.maxHealth) {
             if (this.scene.time.now - this.lastRegenTime > 1000) {
-                const healAmount = 10;
-                const nextHealth = Math.min(this.commander.health + healAmount, GAME_CONFIG.MAX_HEALTH);
+                const healAmount = GAME_CONFIG.COMMANDER_REGEN_PER_SEC;
+                const nextHealth = Math.min(this.commander.health + healAmount, this.commander.maxHealth);
                 this.updateCharacterHealth(this.commander.id, nextHealth);
                 this.lastRegenTime = this.scene.time.now;
             }
@@ -98,4 +101,4 @@ export default class GameManager {
     }
 }
 
-Object.assign(GameManager.prototype, InputMethods, CombatMethods, UnitMethods, EconomyMethods, GameUIMethods);
+Object.assign(GameManager.prototype, InputMethods, CombatMethods, UnitMethods, EconomyMethods, GameUIMethods, ProgressionMethods);

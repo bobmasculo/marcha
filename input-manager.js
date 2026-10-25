@@ -21,6 +21,9 @@ export const InputMethods = {
         this.scene.input.keyboard.on('keydown-R', () => this.toggleRangeVisual());
 
 
+        // Tecla 'P': painel de upgrades
+        this.scene.input.keyboard.on('keydown-P', () => UIManager.toggleUpgradePanel(this.scene));
+
         // MOVIDO: Painel de Stats agora é na tecla 'U'
         this.scene.input.keyboard.on('keydown-U', () => {
             this.toggleStatsPanelVisibility();
@@ -263,6 +266,10 @@ export const InputMethods = {
         fixElement(window.progressText);
         fixElement(window.spawnMinerBtn);
         fixElement(window.spawnSoldierBtn);
+        fixElement(window.spawnSpyBtn);
+        fixElement(window.upgradeBtn);
+        fixElement(window.upgradePanel);
+        fixElement(window.objectiveText);
         fixElement(window.distanceText);
 
         // Corrige a posição dos slots e ícones do inventário

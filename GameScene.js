@@ -7,6 +7,7 @@ import Cenario from './cenario.js';
 import ShotManager from './ShotManager.js';
 import AnimationManager from './animation-manager.js';
 import GameManager from './game-manager.js';
+import { getMission } from './progression.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -27,7 +28,8 @@ export default class GameScene extends Phaser.Scene {
         // Recebe os dados da LobbyScene (ou de onde quer que a cena seja iniciada)
         console.log("GameScene iniciada com dados:", data);
         this.initialGameData = data;
-        this.missionNumber = (data && data.missionNumber) ? data.missionNumber : 1; 
+        this.missionNumber = (data && data.missionNumber) ? data.missionNumber : 1;
+        this.mission = getMission(this.missionNumber);
     }
 
     preload() {
@@ -196,7 +198,7 @@ export default class GameScene extends Phaser.Scene {
 
         // --- LÓGICA DE MINERAÇÃO ---
         // Gera os minérios no mapa
-        this.meuCenario.createOreField(GAME_CONFIG.TOTAL_ORES || 2500);
+        this.meuCenario.createOreField(this.mission.ores);
 
         // Sobreposição entre players e minérios
         this.physics.add.overlap(this.gameManager.players, this.meuCenario.oresGroup, (player, ore) => {

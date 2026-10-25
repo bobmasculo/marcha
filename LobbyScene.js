@@ -1,3 +1,5 @@
+import { getMission } from './progression.js';
+
 /**
  * @class LobbyScene
  * @description Gerencia a interface e a lógica da sala de espera do jogo.
@@ -82,7 +84,7 @@ export default class LobbyScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // INDICADOR DE MISSÃO ATUAL
-        const missionText = this.add.text(0, 150, `CURRENT MISSION: ${this.currentMission}`, {
+        const missionText = this.add.text(0, 150, `MISSION ${this.currentMission}: ${getMission(this.currentMission).name.toUpperCase()}`, {
             fontSize: '22px',
             fill: '#00ff00',
             fontFamily: 'Arial, sans-serif',

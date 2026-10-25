@@ -8,8 +8,12 @@ const GAME_CONFIG = {
     MAX_MOVE_DISTANCE: 700, // máximo de pixels que um jogador pode se mover por turno
     SHOOT_OVERLAY_ALPHA: 0.22, // opacidade do overlay fora do alcance (0.0 - 1.0)
     NPC_ATTACK_RANGE: 400, // Agora os Aliens atacam de longe
-    NPC_DAMAGE: 5, // Dano base do NPC
-    PLAYER_DAMAGE: 5, // Dano base do Jogador
+    NPC_DAMAGE: 5, // Dano base do NPC (antes da redução por armadura)
+    ARMOR_SCALE: 100, // Redução de dano = armadura / (armadura + ARMOR_SCALE)
+    COMMANDER_REGEN_PER_SEC: 2, // Regeneração de vida do comandante por segundo
+    NPC_LEASH_RANGE: 650, // Distância do alvo além da qual o NPC desiste sem linha de visão
+    NPC_RETREAT_COOLDOWN_MS: 6000, // Tempo que o NPC fica recuado ao chegar no limite de vida
+    SPY_AGGRO_MULTIPLIER: 1.6, // O espião é visto de mais longe e tem prioridade como alvo
     NPC_VISION_RANGE: 200, // Visão aumentada para manter o alvo enquanto atira
     PLAYER_VISION_RANGE: 600, // Visão do jogador e da IA (Diferente dos NPCs)
     NPC_SPEED: 460, // Velocidade padrão do NPC
@@ -17,16 +21,13 @@ const GAME_CONFIG = {
     IDLE_TIMEOUT_MS: 5000, // Tempo para entrar em idle (10 segundos)
     NPC_ARMOR: 30, // Armadura do NPC
     NPC_WEAPON_STRENGTH: 40, // Força de ataque do NPC
-    RANDOM_NPC_COUNT: 55, // Quantidade total de NPCs no mapa
     RANDOM_NPC_TYPE: 'alien', // Tipo de NPC (alien ou guarda) definido em NPC_CONFIGS
     NPC_ATTACK_COOLDOWN: 1000, // Tempo entre ataques (ms)
     MAX_HEALTH: 100,
     UI_BAR_HEIGHT: 80,
     ORE_VALUE: 10, // Quanto vale cada minério coletado
-    TOTAL_ORES: 2500, // Quantidade total de minérios a serem gerados no mapa
     NPC_RETREAT_THRESHOLD: 0.3, // Recua ao chegar em 30% de vida
-    INITIAL_COINS: 50,
-    UNIT_COSTS: { minerador: 25, soldado: 25 },
+    UNIT_COSTS: { minerador: 25, soldado: 25, espiao: 40 },
     SHOOT_DISTANCE: 100,
     MUSIC_VOLUME: 0.2, // Volume da música de fundo (0.0 a 1.0)
     SFX_VOLUME: 0.5,   // Volume dos efeitos sonoros (tiros, impactos, etc)
@@ -49,8 +50,8 @@ const GAME_CONFIG = {
 const WEAPONS = {
         'pistol': { 
             name: 'Pistola', 
-            minDamage: 1, 
-            maxDamage: 1, 
+            minDamage: 5, 
+            maxDamage: 8, 
             range: 500,
             shootType: 'game_feel', // Corrigido para usar o sistema de projétil com textura
             projectileSpeed: 1100, 
@@ -71,8 +72,8 @@ const WEAPONS = {
         },
         'shotgun': { 
             name: 'Escopeta', 
-            minDamage: 1, 
-            maxDamage: 1, 
+            minDamage: 8, 
+            maxDamage: 12, 
             range: 550, 
             shootType: 'game_feel_rifle', // Novo tipo de tiro
             projectileSpeed: 1100, 
@@ -177,6 +178,32 @@ const PLAYER_CONFIGS = {
             shoot_left: [67,68,69,70,71,72],
             shoot_right: [92,93,94,95,96,97,98],
             shoot_up: [55,56,57,58,59]
+        }
+    },
+
+    // Espião ("boi de piranha"): isca barata que atrai a atenção dos aliens e enxerga longe
+    'espiao': {
+        textureKey: 'espiao',
+        path: 'assets/new/karlmarx_universal.png',
+        frameWidth: 64,
+        frameHeight: 64,
+        frameRate: 15,
+        scale: 0.8,
+        get displayHeight() { return this.frameHeight * this.scale; },
+        get displayWidth() { return this.frameWidth * this.scale; },
+        visionRange: 500,
+        healthTextOffset: -55,
+        highlightOffset: -20,
+        muzzleOffset: { x: 10, y: -45 },
+        weapon: 'pistol',
+        armor: 10,
+        weaponStrength: 20,
+        animationFrames: {
+            down: range(130,138),
+            left: range(117,125),
+            right: range(143,151),
+            up: range(104,112),
+            idle: [235],
         }
     },
 };
@@ -518,6 +545,14 @@ const NPC_CONFIGS = {
     }
 };
 
+/** Upgrades comprados com moedas. base: custo do nível 1 (dobra a cada nível). per: efeito somado por nível. */
+const UPGRADE_DEFS = {
+    damage: { label: 'DANO',      base: 50, max: 5, per: 0.2,  desc: '+20% de dano por nível' },
+    health: { label: 'VIDA',      base: 40, max: 5, per: 20,   desc: '+20 de vida máxima por nível' },
+    mining: { label: 'MINERAÇÃO', base: 40, max: 5, per: 0.25, desc: '+25% de moedas por minério' },
+    range:  { label: 'ALCANCE',   base: 60, max: 3, per: 0.1,  desc: '+10% de alcance de tiro' }
+};
+
 // Outros objetos do mapa
 
 // Expor variáveis para módulos (GameScene.js)
@@ -528,3 +563,4 @@ window.WEAPONS = WEAPONS; // <--- ADICIONADO: Exporta as armas para o escopo glo
 window.mapaArray = mapaArray;
 window.extras_mapas = extras_mapas;
 window.PLAYER_SETUP = PLAYER_SETUP;
+window.UPGRADE_DEFS = UPGRADE_DEFS;

@@ -23,6 +23,18 @@ class UIManager {
         
         // Botões de Spawn (Direita)
         const btnY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2;
+        window.spawnSpyBtn = this._createButton(scene, width - 390, btnY, 'ESPIÃO ($40)', {
+            width: 130,
+            backgroundColor: 0x440044,
+            onClick: () => { if (window.gameManager) window.gameManager.spawnUnit('espiao'); }
+        });
+
+        window.upgradeBtn = this._createButton(scene, width / 2 - 200, btnY, 'UPGRADES [P]', {
+            width: 110,
+            backgroundColor: 0x553300,
+            onClick: () => this.toggleUpgradePanel(scene)
+        });
+
         window.spawnMinerBtn = this._createButton(scene, width - 250, btnY, 'MINERADOR ($250)', {
             width: 130,
             backgroundColor: 0x444400,
@@ -36,18 +48,28 @@ class UIManager {
         });
 
         // Botão de Transmissão (Centro)
-        window.transmitBtn = this._createButton(scene, width / 2 + 150, btnY, 'TRANSMITIR ($100)', {
+        window.transmitBtn = this._createButton(scene, width / 2 + 100, btnY, 'TRANSMITIR ($100)', {
             width: 160,
             backgroundColor: 0x004466,
             onClick: () => { if (window.gameManager) window.gameManager.transmitMessage(); }
         });
 
         // Texto de Progresso da Mensagem
-        window.progressText = scene.add.text(width / 2 + 150, height - GAME_CONFIG.UI_BAR_HEIGHT + 15, 'PROGRESS: 0%', {
+        window.progressText = scene.add.text(width / 2 + 100, height - GAME_CONFIG.UI_BAR_HEIGHT + 15, 'PROGRESS: 0%', {
             fontSize: '12px',
             fill: '#00ffff',
             fontStyle: 'bold'
         }).setOrigin(0.5).setScrollFactor(0).setDepth(10001);
+
+        // Objetivo da missão (topo, centro)
+        window.objectiveText = scene.add.text(width / 2, 10, '', {
+            fontSize: '14px',
+            fill: '#ffffff',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 3,
+            fontStyle: 'bold'
+        }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(10001);
 
         // Moedas centralizadas à esquerda do centro
         window.coinText = scene.add.text(width / 2 - 50, height - GAME_CONFIG.UI_BAR_HEIGHT / 2, 'Coins: 0', {
@@ -88,6 +110,7 @@ class UIManager {
 
         // Criar UI de Inventário
         this.createInventoryUI(scene);
+        this.createUpgradePanel(scene);
         
         console.log('UI criada com botões funcionais');
     }
@@ -169,8 +192,12 @@ class UIManager {
 
         if (window.spawnMinerBtn) { window.spawnMinerBtn._screenX = width - 250; window.spawnMinerBtn._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2; }
         if (window.spawnSoldierBtn) { window.spawnSoldierBtn._screenX = width - 100; window.spawnSoldierBtn._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2; }
-        if (window.transmitBtn) { window.transmitBtn._screenX = width / 2 + 150; window.transmitBtn._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2; }
-        if (window.progressText) { window.progressText._screenX = width / 2 + 150; window.progressText._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT + 15; }
+        if (window.spawnSpyBtn) { window.spawnSpyBtn._screenX = width - 390; window.spawnSpyBtn._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2; }
+        if (window.upgradeBtn) { window.upgradeBtn._screenX = width / 2 - 200; window.upgradeBtn._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2; }
+        if (window.objectiveText) { window.objectiveText._screenX = width / 2; window.objectiveText._screenY = 10; }
+        if (window.upgradePanel) { window.upgradePanel._screenX = width / 2; window.upgradePanel._screenY = height / 2; }
+        if (window.transmitBtn) { window.transmitBtn._screenX = width / 2 + 100; window.transmitBtn._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT / 2; }
+        if (window.progressText) { window.progressText._screenX = width / 2 + 100; window.progressText._screenY = height - GAME_CONFIG.UI_BAR_HEIGHT + 15; }
 
         if (window.gameManager && window.gameManager.statsPanel) {
             const panelWidth = 220;
@@ -211,6 +238,30 @@ class UIManager {
             window.spawnSoldierBtn.label.setAlpha(canAfford ? 1 : 0.5);
         }
 
+        if (window.spawnSpyBtn) {
+            const cost = window.gameManager.getUnitCost('espiao');
+            window.spawnSpyBtn.label.setText(`ESPIÃO ($${cost})`);
+            const canAfford = window.gameManager.commander && window.gameManager.commander.coins >= cost;
+            window.spawnSpyBtn.label.setAlpha(canAfford ? 1 : 0.5);
+        }
+
+        if (window.upgradeButtons) {
+            Object.entries(window.upgradeButtons).forEach(([key, btn]) => {
+                const gm = window.gameManager;
+                const cost = gm.getUpgradeCost(key);
+                const level = gm.getUpgradeLevel(key);
+                const max = UPGRADE_DEFS[key].max;
+                btn.label.setText(cost === null ? `${UPGRADE_DEFS[key].label}  Lv ${level}/${max}  MÁX` : `${UPGRADE_DEFS[key].label}  Lv ${level}/${max}  $${cost}`);
+                const canAfford = cost !== null && gm.commander && gm.commander.coins >= cost;
+                btn.label.setAlpha(canAfford ? 1 : 0.5);
+            });
+        }
+
+        // Só missões de transmissão usam o botão e o progresso de rádio
+        const isTransmitMission = !window.gameManager.mission || window.gameManager.mission.objective.type === 'transmit';
+        if (window.transmitBtn) window.transmitBtn.setVisible(isTransmitMission);
+        if (window.progressText) window.progressText.setVisible(isTransmitMission);
+
         if (window.transmitBtn && window.gameManager) {
             const cost = window.gameManager.messageCurrentCost;
             window.transmitBtn.label.setText(`TRANSMITIR ($${cost})`);
@@ -222,6 +273,50 @@ class UIManager {
             }
         }
     }
+    static toggleUpgradePanel(scene) {
+        if (!window.upgradePanel) return;
+        window.upgradePanel.setVisible(!window.upgradePanel.visible);
+        this.updateButtonStates();
+    }
+
+    static createUpgradePanel(scene) {
+        const defs = Object.entries(UPGRADE_DEFS);
+        const width = 300;
+        const rowGap = 44;
+        const height = 110 + defs.length * rowGap;
+        const container = scene.add.container(scene.cameras.main.width / 2, scene.cameras.main.height / 2)
+            .setScrollFactor(0).setDepth(10050).setVisible(false);
+
+        const bg = scene.add.rectangle(0, 0, width, height, 0x000000, 0.92)
+            .setStrokeStyle(2, 0xffaa00)
+            .setDepth(10050)
+            .setInteractive(); // Bloqueia cliques no mapa por trás do painel
+        const title = scene.add.text(0, -height / 2 + 24, 'UPGRADES', {
+            fontSize: '20px', fill: '#ffaa00', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        container.add([bg, title]);
+
+        window.upgradeButtons = {};
+        defs.forEach(([key, def], i) => {
+            const y = -height / 2 + 70 + i * rowGap;
+            const btn = this._createButton(scene, 0, y, def.label, {
+                width: 250, height: 26, backgroundColor: 0x333333,
+                onClick: () => { if (window.gameManager) window.gameManager.buyUpgrade(key); }
+            });
+            const desc = scene.add.text(0, y + 18, def.desc, { fontSize: '10px', fill: '#aaaaaa' }).setOrigin(0.5);
+            container.add([btn, desc]);
+            window.upgradeButtons[key] = btn;
+        });
+
+        const closeBtn = this._createButton(scene, 0, height / 2 - 26, 'FECHAR', {
+            width: 120, backgroundColor: 0xcc3333, hoverColor: 0xff5555,
+            onClick: () => this.toggleUpgradePanel(scene)
+        });
+        container.add(closeBtn);
+
+        window.upgradePanel = container;
+    }
+
     static createInventoryUI(scene) {
         const width = scene.cameras.main.width;
         const height = scene.cameras.main.height;

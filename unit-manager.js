@@ -43,7 +43,8 @@ export const UnitMethods = {
         player.name = name || id; // <--- Agora usa o nome vindo do config.js
         player.playerType = playerType; // ESSENCIAL para que outros sistemas saibam qual config usar
         player.team = 'player';
-        player.health = GAME_CONFIG.MAX_HEALTH;
+        player.maxHealth = GAME_CONFIG.MAX_HEALTH + this.getUpgradeBonus('health');
+        player.health = player.maxHealth;
         player.visionRange = config.visionRange || 600;
         player.weapon = config.weapon || 'pistol'; // Atribui arma padrão da config
         player.hasKillBonus = false;
@@ -57,7 +58,7 @@ export const UnitMethods = {
 
         // Barra de Vida Visual
         player.healthBar = this.scene.add.graphics().setDepth(player.depth + 1);
-        this.drawHealthBar(player.healthBar, 40, 6, player.health / GAME_CONFIG.MAX_HEALTH);
+        this.drawHealthBar(player.healthBar, 40, 6, player.health / player.maxHealth);
 
         player.setInteractive({ useHandCursor: true });
         player.on('pointerdown', () => {
@@ -95,7 +96,7 @@ export const UnitMethods = {
         this.commander = this.createPlayer(cfg.x, cfg.y, cfg.type, 'player_leader', cfg.name);
         this.players.add(this.commander);
         
-        this.commander.coins = GAME_CONFIG.INITIAL_COINS;
+        this.commander.coins = this.mission.startCoins;
 
         const stats = PLAYER_CONFIGS[cfg.type];
         this.commander.armor = stats.armor || GAME_CONFIG.ARMOR;
@@ -110,7 +111,7 @@ export const UnitMethods = {
 
         // Inicializa visuais e mostra o aviso de missão
         this.updateUI();
-        this.turnEnding = false;
+        this.updateObjectiveUI();
     },
 
     /**
@@ -320,7 +321,7 @@ export const UnitMethods = {
                     const weaponConfig = WEAPONS[weaponKey] || WEAPONS['pistol'];
                     
                     let nearestEnemy = null;
-                    let minDist = weaponConfig.range;
+                    let minDist = weaponConfig.range * (1 + this.getUpgradeBonus('range'));
 
                     // Busca NPCs visíveis no alcance da arma
                     this.scene.npcManager.npcs.getChildren().forEach(npc => {

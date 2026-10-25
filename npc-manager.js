@@ -114,7 +114,7 @@ export default class NpcManager {
         }
 
         // --- GERAÇÃO ALEATÓRIA ---
-        this.spawnRandomNpcs(GAME_CONFIG.RANDOM_NPC_COUNT || 5);
+        this.spawnRandomNpcs(this.scene.mission ? this.scene.mission.npcCount : (GAME_CONFIG.RANDOM_NPC_COUNT || 5));
     }
 
     /**
@@ -443,13 +443,29 @@ export default class NpcManager {
 
         const VISION_RANGE = GAME_CONFIG.NPC_VISION_RANGE;
         const ATTACK_RANGE = GAME_CONFIG.NPC_ATTACK_RANGE;
+        const SPY_MULT = GAME_CONFIG.SPY_AGGRO_MULTIPLIER;
+        const now = this.scene.time.now;
+
+        // --- RECUO: com pouca vida o NPC larga o alvo e volta a patrulhar por um tempo ---
+        const maxHealth = (NPC_CONFIGS[npc.getData('type')] || {}).health || GAME_CONFIG.NPC_MAX_HEALTH;
+        if (!npc.getData('hasRetreated') && npc.health / maxHealth <= GAME_CONFIG.NPC_RETREAT_THRESHOLD) {
+            npc.setData('hasRetreated', true);
+            npc.setData('retreatUntil', now + GAME_CONFIG.NPC_RETREAT_COOLDOWN_MS);
+        }
+        if ((npc.getData('retreatUntil') || 0) > now) {
+            npc.setData('targetPlayer', null);
+            npc.setData('isEngaged', false);
+            npc.setData('isChasing', false);
+            npc.setData('lastKnownTargetPos', null);
+            return false;
+        }
         
         let currentTarget = npc.getData('targetPlayer'); // O alvo que o NPC está perseguindo/atacando
         let nearestPlayerInVision = null; // O jogador mais próximo atualmente visível
         let minDistToNearestPlayer = Infinity;
 
         // OTIMIZAÇÃO: Busca espacial via QuadTree
-        const nearbyEntities = this.scene.meuCenario.getEntitiesInRange(npc.x, npc.y, VISION_RANGE);
+        const nearbyEntities = this.scene.meuCenario.getEntitiesInRange(npc.x, npc.y, VISION_RANGE * SPY_MULT);
         
         for (let i = 0; i < nearbyEntities.length; i++) {
             const entity = nearbyEntities[i];
@@ -459,8 +475,12 @@ export default class NpcManager {
             
             if (isPlayer && entity.active && entity.health > 0 && entity.team !== 'npc') {
                 const d = Phaser.Math.Distance.Between(npc.x, npc.y, entity.x, entity.y);
-                if (d < minDistToNearestPlayer) {
-                    minDistToNearestPlayer = d;
+                // O espião é isca: chama atenção de mais longe e tem prioridade como alvo
+                const isSpy = entity.playerType === 'espiao';
+                const range = isSpy ? VISION_RANGE * SPY_MULT : VISION_RANGE;
+                const effectiveDist = isSpy ? d / SPY_MULT : d;
+                if (d <= range && effectiveDist < minDistToNearestPlayer) {
+                    minDistToNearestPlayer = effectiveDist;
                     nearestPlayerInVision = entity;
                 }
             }
@@ -481,6 +501,14 @@ export default class NpcManager {
                 // O alvo atual está vivo, atualiza sua posição no objeto de referência.
                 currentTarget.x = actualTargetPlayer.x;
                 currentTarget.y = actualTargetPlayer.y;
+
+                // Desiste se o alvo fugiu para longe demais
+                if (Phaser.Math.Distance.Between(npc.x, npc.y, currentTarget.x, currentTarget.y) > GAME_CONFIG.NPC_LEASH_RANGE) {
+                    npc.setData('targetPlayer', null);
+                    npc.setData('isEngaged', false);
+                    npc.setData('isChasing', false);
+                    currentTarget = null;
+                }
             }
         }
 
@@ -544,11 +572,11 @@ export default class NpcManager {
                         // Efeito visual de tiro (Ranged)
                         this.scene.gameManager.executeRemoteShoot(npc, targetSprite.x, targetSprite.y);
                         
-                        // Aplica o dano fixo do config
-                        this.scene.gameManager.updateCharacterHealth(currentTarget.id, targetSprite.health - GAME_CONFIG.NPC_DAMAGE, npc);
+                        // Dano do config, reduzido pela armadura do alvo
+                        const gm = this.scene.gameManager;
+                        const damage = gm.applyArmor(GAME_CONFIG.NPC_DAMAGE, targetSprite.armor);
+                        gm.updateCharacterHealth(currentTarget.id, targetSprite.health - damage, npc);
                         this.handleNpcAttack(npc.getData('id'), currentTarget.id);
-                        
-                        this.scene.gameManager.showMessage(`ALIEN FIRE!`);
                     }
                 }
                 // COMPORTAMENTO RANGED: Se está no alcance e tem visão, PARA de andar para atirar

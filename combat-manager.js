@@ -168,7 +168,7 @@ export const CombatMethods = {
         const weaponConfig = WEAPONS[weaponKey] || WEAPONS['pistol'];
 
         const dist = Phaser.Math.Distance.Between(shooter.x, shooter.y, targetX, targetY);
-        if (dist > weaponConfig.range) {
+        if (dist > weaponConfig.range * (1 + this.getUpgradeBonus('range'))) {
             this.showMessage('Target too far!');
             return;
         }
@@ -207,6 +207,25 @@ export const CombatMethods = {
         }
     },
 
+    /**
+     * Dano de um tiro: sorteia entre min e max da arma, aplica o bônus de upgrade
+     * (só para o time do jogador) e reduz pela armadura do alvo.
+     */
+    computeDamage(attacker, target) {
+        const weapon = WEAPONS[attacker.weapon] || WEAPONS['pistol'];
+        let damage = Phaser.Math.Between(weapon.minDamage, weapon.maxDamage);
+        if (attacker.team === 'player') {
+            damage *= 1 + this.getUpgradeBonus('damage');
+        }
+        return this.applyArmor(damage, target.armor);
+    },
+
+    /** Reduz o dano pela armadura: armadura / (armadura + ARMOR_SCALE). Mínimo de 1. */
+    applyArmor(damage, armor = 0) {
+        const reduction = armor / (armor + GAME_CONFIG.ARMOR_SCALE);
+        return Math.max(1, Math.round(damage * (1 - reduction)));
+    },
+
     // Resolve o tiro localmente (cálculo de dano)
     resolveOfflineShot(shooter, targetX, targetY) {
         // Procura alvo no raio
@@ -216,27 +235,30 @@ export const CombatMethods = {
         if (!target) {
             // Busca NPC por proximidade em um raio de 60px para evitar erros de precisão da IA
             target = this.scene.npcManager.npcs.getChildren().find(n => 
-                n.active && n.visible && Phaser.Math.Distance.Between(targetX, targetY, n.x, n.y) <= 60
+                n.active && n.visible && n.health > 0 && Phaser.Math.Distance.Between(targetX, targetY, n.x, n.y) <= 60
             );
         }
         // Dados para o dado (simulação visual)
         const rollData = { x: targetX, y: targetY, roll: 0, targetNumber: 0, isHit: false, isCritical: false };
 
-        if (target) {
-            const s = shooter.weaponStrength || GAME_CONFIG.WEAPON_STRENGTH;
-            const t = target.armor || GAME_CONFIG.ARMOR;
+        // Parede no caminho bloqueia o tiro
+        if (target && !this.scene.meuCenario.checkLineOfSight(shooter.x, shooter.y, target.x, target.y)) {
+            target = null;
+            rollData.blocked = true;
+        }
 
-            // Tabela de acerto (copiada do server)
-            const isHit = true; // SEMPRE ACERTA conforme solicitado
-            
+        if (target) {
+            // Sempre acerta; o dano depende da arma, dos upgrades e da armadura do alvo
+            const isHit = true;
+            const damage = this.computeDamage(shooter, target);
+
             rollData.roll = 1;
             rollData.targetNumber = 1;
             rollData.isHit = isHit;
             rollData.isCritical = false;
+            rollData.damage = damage;
 
             if (isHit) {
-                // Usa a constante global de dano do jogador
-                let damage = GAME_CONFIG.PLAYER_DAMAGE || 1;
 
                 console.log(`[COMBAT] Atirador: ${shooter.id} | Dano: ${damage}`);
 
@@ -288,8 +310,6 @@ export const CombatMethods = {
         } else {
             this.scene.shotManager.fireGameFeelProjectile(startX, startY, targetX, targetY, 0, false, shooter);
         }
-        const displayId = shooter.id || (shooter.getData ? shooter.getData('id') : "Unit");
-        this.showMessage(`${displayId.substring(0, 5)} fired!`);
     },
 
 
@@ -345,7 +365,7 @@ export const CombatMethods = {
         target.health = newHealth;
 
         // Atualiza a barra de vida visual
-        this.drawHealthBar(target.healthBar, 40, 6, target.health / GAME_CONFIG.MAX_HEALTH);
+        this.drawHealthBar(target.healthBar, 40, 6, target.health / target.maxHealth);
 
         // Se tomou dano, toca som de machucado
         if (newHealth < oldHealth && this.soundManager) {
@@ -394,7 +414,7 @@ export const CombatMethods = {
         if (!this.scene.npcManager || !this.scene.npcManager.npcs) return;
         
         const npc = this.scene.npcManager.npcs.getChildren().find(n => n.getData('id') === npcId);
-        if (npc) {
+        if (npc && npc.health > 0) {
             // Aplica dano direto na propriedade health do sprite
             if (typeof npc.health === 'undefined') npc.health = GAME_CONFIG.NPC_MAX_HEALTH; // Fallback
             
@@ -412,6 +432,7 @@ export const CombatMethods = {
                 }
                 if (npc.healthText) npc.healthText.setVisible(false);
                 this.showMessage('NPC Eliminated!');
+                this.registerKill();
 
                 // Toca a animação de morte definida no config.js
                 const type = npc.getData('type');
@@ -555,8 +576,9 @@ export const CombatMethods = {
         let color = isHit ? '#00ff00' : '#ffffff';
 
         // Simplificado para mostrar apenas o dano causado visualmente
-        let textStr = isHit ? `-${GAME_CONFIG.PLAYER_DAMAGE}` : `MISSED`;
+        let textStr = isHit ? `-${data.damage}` : (data.blocked ? 'BLOCKED' : '');
 
+        if (!textStr) return;
         const text = this.scene.add.text(x, y - 60, textStr, {
             fontSize: '24px',
             fill: color,

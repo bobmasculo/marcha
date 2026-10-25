@@ -58,18 +58,12 @@ export const GameUIMethods = {
         this.statsPanel.setVisible(true);
         const p = this.selectedPlayer;
 
-        // Configurações das armas no cliente
-        const weaponConfigs = {
-            'pistol': { name: 'Pistol', minDamage: 10, maxDamage: 40 },
-            'shotgun': { name: 'Shotgun', minDamage: 20, maxDamage: 50 }
-        };
+        // Dano mostrado já inclui o upgrade (só vale para o time do jogador)
+        const weapon = WEAPONS[p.weapon] || WEAPONS['pistol'];
+        const bonus = 1 + this.getUpgradeBonus('damage');
+        const damageText = `${Math.round(weapon.minDamage * bonus)}-${Math.round(weapon.maxDamage * bonus)}`;
 
-        // Pega os dados da arma do jogador para exibir na UI
-        const weaponKey = p.weapon || 'pistol';
-        const weapon = weaponConfigs[weaponKey] || weaponConfigs['pistol'];
-        const damageText = `${weapon.minDamage}-${weapon.maxDamage}`;
-
-        const text = `Name: ${p.name}\nHP: ${p.health}/${GAME_CONFIG.MAX_HEALTH}\nWeapon: ${weapon.name}\nDamage: ${damageText}\nArmor: ${p.armor || 0}\nStrength: ${p.weaponStrength || 0}`;
+        const text = `Name: ${p.name}\nHP: ${p.health}/${p.maxHealth}\nWeapon: ${weapon.name}\nDamage: ${damageText}\nArmor: ${p.armor || 0}\nStrength: ${p.weaponStrength || 0}`;
         this.statsInfoText.setText(text);
         console.log('[StatsPanel] Text set to:', text);
     },
